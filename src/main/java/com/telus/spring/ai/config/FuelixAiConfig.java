@@ -36,7 +36,7 @@ public class FuelixAiConfig {
     public ChatModel chatModel(OpenAiApi openAiApi) {
         OpenAiChatOptions options = OpenAiChatOptions.builder()
                 .withModel(model)
-                .withTemperature(0.7d)
+                .withTemperature(0.2d)
                 .withMaxTokens(10000)
                 .build();
 

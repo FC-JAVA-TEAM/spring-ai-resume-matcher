@@ -1,10 +1,23 @@
 package com.telus.spring.ai.resume.controller;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.telus.spring.ai.resume.model.Resume;
 import com.telus.spring.ai.resume.model.ResumeMatch;
@@ -13,30 +26,59 @@ import com.telus.spring.ai.resume.service.ResumeMatchingService;
 import com.telus.spring.ai.resume.service.ResumeStorageService;
 import com.telus.spring.ai.resume.service.impl.ResumeMatchingServiceImpl;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 /**
  * Controller for resume matching endpoints.
  * Simplified to focus only on matching functionality without file uploads.
  * Uses synchronous endpoints with optimized internal processing.
+ * @param <ResumeParserService>
  */
 @RestController
 @RequestMapping("/api/resumes")
-public class ResumeController {
+public class ResumeController{
     
     private static final Logger logger = LoggerFactory.getLogger(ResumeController.class);
     
     private final ResumeStorageService storageService;
     private final ResumeMatchingService matchingService;
+    private final com.telus.spring.ai.resume.service.ResumeParserService parserService;
     
     public ResumeController(
+    		com.telus.spring.ai.resume.service.ResumeParserService parserService,
             ResumeStorageService storageService,
             ResumeMatchingService matchingService) {
         this.storageService = storageService;
         this.matchingService = matchingService;
+		this.parserService = parserService;
+    }
+    
+    
+    /**
+     * Upload a resume.
+     * 
+     * @param file The resume file to upload
+     * @return The uploaded resume
+     */
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ResumeResponse> uploadResume(@RequestParam("file") MultipartFile file) {
+        try {
+            logger.info("Uploading resume: {}", file.getOriginalFilename());
+            
+            // Parse the resume
+            com.telus.spring.ai.resume.model.ResumeParseResult parseResult = parserService.parseResume(file);
+            
+            // Store the resume
+            Resume resume = storageService.storeResume(parseResult, file);
+            
+            // Return the response
+            ResumeResponse response = new ResumeResponse(resume);
+            
+            logger.info("Resume uploaded successfully: {}", resume.getId());
+            
+            return ResponseEntity.ok(response);
+        } catch (IOException e) {
+            logger.error("Error uploading resume", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
     
     /**

@@ -13,12 +13,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.telus.spring.ai.resume.model.Resume;
+import com.telus.spring.ai.resume.model.ResumeParseResult;
 import com.telus.spring.ai.resume.model.SyncResult;
 import com.telus.spring.ai.resume.repository.ResumeRepository;
 import com.telus.spring.ai.resume.service.ResumeStorageService;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,8 +54,8 @@ public class ResumeStorageServiceImpl implements ResumeStorageService {
     
     public ResumeStorageServiceImpl(
             ResumeRepository resumeRepository,
-          //  @Qualifier("resumeVectorStore") VectorStore vectorStore,
-            VectorStore vectorStore,
+            @Qualifier("resumeVectorStore") VectorStore vectorStore,
+           // VectorStore vectorStore,
             EmbeddingModel embeddingModel,
             JdbcTemplate jdbcTemplate) {
         this.resumeRepository = resumeRepository;
@@ -280,4 +284,93 @@ public class ResumeStorageServiceImpl implements ResumeStorageService {
             String.class
         );
     }
+
+    @Override
+    public Resume storeResume(ResumeParseResult parseResult, MultipartFile file) throws IOException {
+        // First save to database in its own transaction
+        Resume savedResume = saveResumeToDatabase(parseResult, file);
+        
+        // Then try to save to vector store (outside the database transaction)
+        
+        
+        return savedResume;
+    }
+    /**
+     * Save a resume to the database in its own transaction.
+     * 
+     * @param parseResult The parsed resume data
+     * @param file The uploaded file
+     * @return The saved resume
+     * @throws IOException If there is an error reading the file
+     */
+    @Transactional
+    private Resume saveResumeToDatabase(ResumeParseResult parseResult, MultipartFile file) throws IOException {
+        // Check if resume already exists
+        Optional<Resume> existingResume = findByNameEmailPhone(
+                parseResult.getName(),
+                parseResult.getEmail(),
+                parseResult.getPhoneNumber()
+        );
+        
+        if (existingResume.isPresent()) {
+            // Update existing resume
+            Resume resume = existingResume.get();
+            resume.setFullText(parseResult.getFullText());
+            resume.setFileType(parseResult.getFileType());
+            resume.setOriginalFileName(file.getOriginalFilename());
+            resume.setUpdatedAt(LocalDateTime.now());
+            
+            // Save to database
+            return resumeRepository.save(resume);
+        } else {
+            // Create new resume
+            Resume resume = new Resume(
+                    parseResult.getName(),
+                    parseResult.getEmail(),
+                    parseResult.getPhoneNumber(),
+                    parseResult.getFullText(),
+                    parseResult.getFileType(),
+                    file.getOriginalFilename()
+            );
+            
+            // Save to database
+            return resumeRepository.save(resume);
+        }
+    }
+
+	 @Override
+	    public Optional<Resume> findByNameEmailPhone(String name, String email, String phoneNumber) {
+	        return resumeRepository.findByNameAndEmailAndPhoneNumber(name, email, phoneNumber);
+	    }
+
+	 @Override
+	    public Resume updateResume(UUID id, ResumeParseResult parseResult) {
+	        // First update in database in its own transaction
+	        Resume savedResume = updateResumeInDatabase(id, parseResult);
+	        
+	       
+	        
+	        return savedResume;
+	    }
+	 /**
+	     * Update a resume in the database in its own transaction.
+	     * 
+	     * @param id The ID of the resume to update
+	     * @param parseResult The parsed resume data
+	     * @return The updated resume
+	     */
+	    @Transactional
+	    private Resume updateResumeInDatabase(UUID id, ResumeParseResult parseResult) {
+	        Resume resume = resumeRepository.findById(id)
+	                .orElseThrow(() -> new IllegalArgumentException("Resume not found with ID: " + id));
+	        
+	        resume.setName(parseResult.getName());
+	        resume.setEmail(parseResult.getEmail());
+	        resume.setPhoneNumber(parseResult.getPhoneNumber());
+	        resume.setFullText(parseResult.getFullText());
+	        resume.setUpdatedAt(LocalDateTime.now());
+	        
+	        // Save to database
+	        return resumeRepository.save(resume);
+	    }
 }

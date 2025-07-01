@@ -1,50 +1,19 @@
 package com.telus.spring.ai.resume.service;
 
-import java.io.IOException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import com.telus.spring.ai.resume.model.Resume;
+import com.telus.spring.ai.resume.model.SyncResult;
+
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.web.multipart.MultipartFile;
-
-import com.telus.spring.ai.resume.model.Resume;
-import com.telus.spring.ai.resume.model.ResumeParseResult;
-import com.telus.spring.ai.resume.model.SyncResult;
-
 /**
  * Service for storing and retrieving resumes.
+ * Simplified to focus on database operations and vector store synchronization.
  */
-public interface ResumeStorageService {
-    
-    /**
-     * Store a resume.
-     * 
-     * @param parseResult The parsed resume data
-     * @param file The uploaded file
-     * @return The stored resume
-     * @throws IOException If there is an error reading the file
-     */
-    Resume storeResume(ResumeParseResult parseResult, MultipartFile file) throws IOException;
-    
-    /**
-     * Find a resume by name, email, and phone number.
-     * 
-     * @param name The name to search for
-     * @param email The email to search for
-     * @param phoneNumber The phone number to search for
-     * @return The resume, if found
-     */
-    Optional<Resume> findByNameEmailPhone(String name, String email, String phoneNumber);
-    
-    /**
-     * Update a resume.
-     * 
-     * @param id The ID of the resume to update
-     * @param parseResult The parsed resume data
-     * @return The updated resume
-     */
-    Resume updateResume(UUID id, ResumeParseResult parseResult);
+public interface ResumeStorageService2 {
     
     /**
      * Get a resume by ID.
