@@ -50,7 +50,8 @@ public class ResumeStorageServiceImpl implements ResumeStorageService {
     
     public ResumeStorageServiceImpl(
             ResumeRepository resumeRepository,
-            @Qualifier("resumeVectorStore") VectorStore vectorStore,
+          //  @Qualifier("resumeVectorStore") VectorStore vectorStore,
+            VectorStore vectorStore,
             EmbeddingModel embeddingModel,
             JdbcTemplate jdbcTemplate) {
         this.resumeRepository = resumeRepository;

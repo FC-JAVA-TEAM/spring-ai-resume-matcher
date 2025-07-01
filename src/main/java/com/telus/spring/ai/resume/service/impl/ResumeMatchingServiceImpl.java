@@ -40,7 +40,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     
     private static final Logger logger = LoggerFactory.getLogger(ResumeMatchingServiceImpl.class);
     
-    private final VectorStore vectorStore;
+    private  VectorStore vectorStore;
     private final ChatClient chatClient;
     private final ResumeRepository resumeRepository;
     private final String resumeMatchPrompt;
@@ -58,6 +58,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     
     public ResumeMatchingServiceImpl(
             @Qualifier("resumeVectorStore") VectorStore vectorStore,
+    	//	VectorStore vectorStore,
             ChatClient.Builder builder,
             ResumeRepository resumeRepository,
             @Qualifier("resumeMatchPrompt") String resumeMatchPrompt) {

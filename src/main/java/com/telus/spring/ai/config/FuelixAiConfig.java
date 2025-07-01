@@ -10,47 +10,50 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
-//@Configuration
-//public class FuelixAiConfig {
-//
-//    @Value("${fuelix.api.base-url}")
-//    private String baseUrl;
-//    
-//    @Value("${fuelix.api.token}")
-//    private String token;
-//    
-//    @Value("${fuelix.api.model}")
-//    private String model;
-//    
-//    @Value("${fuelix.api.embedding-model}")
-//    private String embeddingModel;
-//
-//
-//    @Bean
-//    @Primary
-//    public OpenAiApi openAiApi() {
-//        // Create a custom OpenAiApi that points to Fuelix
-//        return new FuelixOpenAiApi(baseUrl, token, model);
+@Configuration
+public class FuelixAiConfig {
+
+    @Value("${fuelix.api.base-url}")
+    private String baseUrl;
+
+    @Value("${fuelix.api.token}")
+    private String token;
+
+    @Value("${fuelix.api.model}")
+    private String model;
+
+    @Value("${fuelix.api.embedding-model}")
+    private String embeddingModel;
+
+    @Bean
+    @Primary
+    public OpenAiApi openAiApi() {
+        return new OpenAiApi(baseUrl, token);
+    }
+
+    @Bean
+    @Primary
+    public ChatModel chatModel(OpenAiApi openAiApi) {
+        OpenAiChatOptions options = OpenAiChatOptions.builder()
+                .withModel(model)
+                .withTemperature(0.7d)
+                .withMaxTokens(10000)
+                .build();
+
+        return new OpenAiChatModel(openAiApi, options);
+    }
+    
+    @Bean
+  @Primary
+  public EmbeddingModel embeddingModel(OpenAiApi openAiApi) {
+//      // Create FuelixEmbeddingModel with our custom API
+      return new FuelixEmbeddingModel(openAiApi, embeddingModel);
+  }
+
+//    public FuelixEmbeddingModel(OpenAiApi openAiApi, String embeddingModel) {
+//        super(openAiApi, MetadataMode.EMBED, 
+//              OpenAiEmbeddingOptions.builder()
+//                  .withModel(embeddingModel)
+//                  .build());
 //    }
-//
-//    @Bean
-//    @Primary
-//    public ChatModel chatModel(OpenAiApi openAiApi) {
-//        // Create OpenAiChatModel with our custom API and options
-//        OpenAiChatOptions options = OpenAiChatOptions.builder()
-//            .withModel(model)
-//            .withTemperature(0.7d)
-//            .build();
-//            
-//        return new OpenAiChatModel(openAiApi, options);
-//    }
-//    
-//   
-//    @Bean
-//    @Primary
-//    public EmbeddingModel embeddingModel(OpenAiApi openAiApi) {
-//        // Create FuelixEmbeddingModel with our custom API
-//        return new FuelixEmbeddingModel(openAiApi, embeddingModel);
-//    }
-//    
-//}
+}
