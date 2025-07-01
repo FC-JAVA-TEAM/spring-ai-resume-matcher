@@ -197,8 +197,13 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                                context.getRetryCount(), resume.getId());
                 }
                 
-                // Make the AI call
-                return chatModel.call(prompt).getResult().getOutput().getContent();
+                // Make the AI call with Spring AI 1.0.0-M6
+                var response = chatModel.call(prompt);
+                if (response != null && response.getResult() != null && 
+                    response.getResult().getOutput() != null) {
+                    return response.getResult().getOutput().getText();
+                }
+                return "Unable to generate explanation. No valid response from AI service.";
             }, context -> {
                 // This is the recovery callback - called when all retries fail
                 logger.error("All retries failed for resume {}: {}", 
@@ -255,8 +260,13 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                                        context.getRetryCount(), resume.getId());
                         }
                         
-                        // Make the AI call
-                return chatModel.call(prompt).getResult().getOutput().getContent();
+                        // Make the AI call with Spring AI 1.0.0-M6
+                var response = chatModel.call(prompt);
+                if (response != null && response.getResult() != null && 
+                    response.getResult().getOutput() != null) {
+                    return response.getResult().getOutput().getText();
+                }
+                return "Unable to generate explanation. No valid response from AI service.";
                     }, context -> {
                         // This is the recovery callback - called when all retries fail
                         logger.error("All async retries failed for resume {}: {}", 
