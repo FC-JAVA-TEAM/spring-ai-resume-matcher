@@ -1,5 +1,8 @@
 package com.telus.spring.ai.config;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -36,7 +39,7 @@ public class FuelixAiConfig {
 	@Bean
 	@Primary
 	public ChatModel chatModel(OpenAiApi openAiApi) {
-		// Create a custom OpenAiChatModel with the model name from configuration
+		// Create a simple OpenAiChatModel with the API
 		OpenAiChatModel chatModel = new OpenAiChatModel(openAiApi);
 		
 		// Set the model name using reflection to override the default
