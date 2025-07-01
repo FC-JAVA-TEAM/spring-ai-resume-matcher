@@ -36,8 +36,20 @@ public class FuelixAiConfig {
 	@Bean
 	@Primary
 	public ChatModel chatModel(OpenAiApi openAiApi) {
-		// In Spring AI 1.0.0-M6, the API has changed
-		return new OpenAiChatModel(openAiApi);
+		// Create a custom OpenAiChatModel with the model name from configuration
+		OpenAiChatModel chatModel = new OpenAiChatModel(openAiApi);
+		
+		// Set the model name using reflection to override the default
+		try {
+			java.lang.reflect.Field modelField = OpenAiChatModel.class.getDeclaredField("model");
+			modelField.setAccessible(true);
+			modelField.set(chatModel, model);
+		} catch (Exception e) {
+			// If reflection fails, log the error but continue
+			System.err.println("Failed to set model name: " + e.getMessage());
+		}
+		
+		return chatModel;
 	}
 	
 	@Bean
