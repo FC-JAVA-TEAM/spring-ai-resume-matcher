@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.3.5</version>
+		<version>3.2.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.telus</groupId>
@@ -42,7 +42,7 @@
 			<artifactId>spring-boot-starter-thymeleaf</artifactId>
 		</dependency>
 		
-		<!-- Removed Thymeleaf dependency to use only Vaadin for UI -->
+		<!-- Added Thymeleaf for UI after removing Vaadin -->
 		
 		<!-- Dev tools for hot reload -->
 		<dependency>
@@ -99,19 +99,6 @@
 			<version>${spring-ai.version}</version>
 		</dependency>
 
-<!--<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.ai</groupId>
-			<artifactId>spring-ai-pgvector-store-spring-boot-starter</artifactId>
-		</dependency>-->
 
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
