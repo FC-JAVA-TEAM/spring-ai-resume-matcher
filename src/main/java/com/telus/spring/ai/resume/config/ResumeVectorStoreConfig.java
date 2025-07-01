@@ -12,6 +12,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -103,11 +104,16 @@ public class ResumeVectorStoreConfig {
                     }
                     
                     // Insert into resume_vector_store table
+                    // Get content from document
+                    String content = document.getMetadata().containsKey("content") 
+                        ? (String) document.getMetadata().get("content") 
+                        : document.toString();
+                    
                     jdbcTemplate.update(
                         "INSERT INTO resume_vector_store (id, resume_id, content, metadata, embedding) VALUES (?, ?, ?, ?::json, ?::vector)",
                         UUID.randomUUID(),
                         resumeId,  // Now it's a UUID
-                        document.getContent(),
+                        content,
                         metadataJson,  // Properly formatted JSON
                         vectorString
                     );
@@ -199,9 +205,9 @@ public class ResumeVectorStoreConfig {
         }
         
         @Override
-        public Optional<Boolean> delete(List<String> ids) {
+        public void delete(List<String> ids) {
             if (ids == null || ids.isEmpty()) {
-                return Optional.of(false);
+                return;
             }
             
             try {
@@ -220,12 +226,20 @@ public class ResumeVectorStoreConfig {
                     params
                 );
                 
-                return Optional.of(rowsAffected > 0);
+                logger.info("Deleted {} documents from vector store", rowsAffected);
             } catch (IllegalArgumentException e) {
                 // Log error if UUID parsing fails
-                System.err.println("Error parsing UUID for deletion: " + e.getMessage());
-                return Optional.of(false);
+                logger.error("Error parsing UUID for deletion: {}", e.getMessage());
             }
+        }
+        
+        @Override
+        public void delete(Filter.Expression filter) {
+            logger.warn("Delete by filter expression is not implemented. Filter: {}", filter);
+            // This method is required by the VectorStore interface but not implemented
+            // in this custom implementation
+            // In a real implementation, we would convert the filter expression to SQL
+            // and execute a DELETE query
         }
         
         /**
