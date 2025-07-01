@@ -137,7 +137,11 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                 resume.setName(metadata.get("name").toString());
                 resume.setEmail(metadata.get("email").toString());
                 resume.setPhoneNumber(metadata.get("phoneNumber").toString());
-                resume.setFullText((String) document.getContent());
+                // Get content from document
+                String content = document.getMetadata().containsKey("content") 
+                    ? (String) document.getMetadata().get("content") 
+                    : document.toString();
+                resume.setFullText(content);
                 
                 if (metadata.containsKey("fileType")) {
                     resume.setFileType(metadata.get("fileType").toString());
