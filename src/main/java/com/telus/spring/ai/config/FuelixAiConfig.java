@@ -34,8 +34,8 @@ public class FuelixAiConfig {
 	@Bean
 	@Primary
 	public ChatModel chatModel(OpenAiApi openAiApi) {
-		OpenAiChatOptions options = OpenAiChatOptions.builder().withModel(model).withTemperature(0.2d)
-				.withMaxTokens(50000).build();
+		OpenAiChatOptions options = OpenAiChatOptions.builder().model(model).temperature(0.2d)
+				.maxTokens(50000).build();
 
 		return new OpenAiChatModel(openAiApi, options);
 	}

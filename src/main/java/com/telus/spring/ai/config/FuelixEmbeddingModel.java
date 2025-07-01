@@ -29,7 +29,7 @@ public class FuelixEmbeddingModel extends OpenAiEmbeddingModel {
     public FuelixEmbeddingModel(OpenAiApi openAiApi, String embeddingModel) {
         super(openAiApi, MetadataMode.EMBED, 
               OpenAiEmbeddingOptions.builder()
-                  .withModel(embeddingModel)
+                  .model(embeddingModel)
                   .build());
     }
 }
