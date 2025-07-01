@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -44,6 +45,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     private final ChatClient chatClient;
     private final ResumeRepository resumeRepository;
     private final String resumeMatchPrompt;
+    private final RetryTemplate aiRetryTemplate;
     
     @Value("${resume.matching.ai-timeout-seconds:30}")
     private int aiOperationTimeoutSeconds;
@@ -61,11 +63,13 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     	//	VectorStore vectorStore,
             ChatClient.Builder builder,
             ResumeRepository resumeRepository,
-            @Qualifier("resumeMatchPrompt") String resumeMatchPrompt) {
+            @Qualifier("resumeMatchPrompt") String resumeMatchPrompt,
+            RetryTemplate aiRetryTemplate) {
         this.vectorStore = vectorStore;
         this.chatClient = builder.build();
         this.resumeRepository = resumeRepository;
         this.resumeMatchPrompt = resumeMatchPrompt;
+        this.aiRetryTemplate = aiRetryTemplate;
     }
     
     @Override
@@ -176,13 +180,29 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                     "resumeText", resume.getFullText()
             ));
             
-            // Get the response from the AI
-            String explanation = chatClient.prompt(prompt)
-                    .call()
-                    .chatResponse()
-                    .getResult()
-                    .getOutput()
-                    .getContent();
+            // Get the response from the AI with retry for 503 errors
+            String explanation = aiRetryTemplate.execute(context -> {
+                // Log retry attempts
+                if (context.getRetryCount() > 0) {
+                    logger.info("Retry attempt {} for resume {}", 
+                               context.getRetryCount(), resume.getId());
+                }
+                
+                // Make the AI call
+                return chatClient.prompt(prompt)
+                        .call()
+                        .chatResponse()
+                        .getResult()
+                        .getOutput()
+                        .getContent();
+            }, context -> {
+                // This is the recovery callback - called when all retries fail
+                logger.error("All retries failed for resume {}: {}", 
+                           resume.getId(), context.getLastThrowable().getMessage());
+                
+                // Generate fallback explanation
+                return "Unable to generate explanation after multiple attempts. The AI service is currently unavailable. Please try again later.";
+            });
             
             logger.info("Generated explanation for resume: {}", resume.getId());
             
@@ -223,13 +243,29 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
             // Execute the AI call in a separate thread
             CompletableFuture.runAsync(() -> {
                 try {
-                    // Get the response from the AI
-                    String explanation = chatClient.prompt(prompt)
-                            .call()
-                            .chatResponse()
-                            .getResult()
-                            .getOutput()
-                            .getContent();
+                    // Get the response from the AI with retry for 503 errors
+                    String explanation = aiRetryTemplate.execute(context -> {
+                        // Log retry attempts
+                        if (context.getRetryCount() > 0) {
+                            logger.info("Async retry attempt {} for resume {}", 
+                                       context.getRetryCount(), resume.getId());
+                        }
+                        
+                        // Make the AI call
+                        return chatClient.prompt(prompt)
+                                .call()
+                                .chatResponse()
+                                .getResult()
+                                .getOutput()
+                                .getContent();
+                    }, context -> {
+                        // This is the recovery callback - called when all retries fail
+                        logger.error("All async retries failed for resume {}: {}", 
+                                   resume.getId(), context.getLastThrowable().getMessage());
+                        
+                        // Generate fallback explanation
+                        return "Unable to generate explanation after multiple attempts. The AI service is currently unavailable. Please try again later.";
+                    });
                     
                     // Complete the future with the result
                     aiCallFuture.complete(explanation);

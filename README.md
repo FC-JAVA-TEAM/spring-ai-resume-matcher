@@ -1,65 +1,84 @@
-# Spring AI Resume Matcher
+# Spring AI Resume Matching Application
 
-A Spring Boot application that uses AI to parse, analyze, and match resumes with job descriptions. This application leverages Spring AI, Vaadin UI framework, and vector databases for efficient resume processing and matching.
+This application uses Spring AI to match resumes against job descriptions using vector similarity search and AI-powered analysis.
 
 ## Features
 
-- **Resume Parsing**: Extract structured information from PDF resumes
-- **AI-Powered Matching**: Match resumes against job descriptions using AI
-- **Vector Database Storage**: Store and search resumes efficiently using vector embeddings
-- **User-Friendly Interface**: Clean UI built with Vaadin framework
-- **Scheduled Synchronization**: Automatic synchronization of vector database
+- Upload and parse resumes in PDF and DOCX formats
+- Store resumes in a PostgreSQL database
+- Index resumes in a vector store for similarity search
+- Match resumes against job descriptions using AI
+- Provide detailed analysis of resume matches
 
-## Technologies Used
+## Comprehensive Error Handling and Retry Mechanism
 
-- Spring Boot
-- Spring AI
-- Vaadin Framework
-- H2 Database
-- Vector Database for embeddings
-- Thymeleaf Templates
-- RESTful APIs
+The application includes a robust error handling and retry mechanism to handle various transient errors from the AI service, such as 503 Service Unavailable errors, network timeouts, and connection issues. This ensures that the application can continue to function even when the AI service is temporarily unavailable.
+
+### How It Works
+
+1. **RetryTemplate Configuration**: The application uses Spring Retry's `RetryTemplate` to automatically retry failed AI API calls.
+
+2. **Exponential Backoff**: Each retry attempt waits longer than the previous one, using an exponential backoff strategy to avoid overwhelming the AI service.
+
+3. **Selective Retries**: Specific errors (503, 502, 504, and network issues including ResourceAccessException with null causes) trigger retries, while other errors are handled immediately.
+
+4. **Fallback Mechanism**: If all retry attempts fail, the application provides a graceful fallback response instead of failing completely.
+
+5. **Exception Handling**: Comprehensive exception handling throughout the application ensures that errors are properly logged and don't cause the application to crash.
+
+6. **Configurable Parameters**: The retry behavior can be configured through application properties:
+   - `resume.matching.ai-retry-count`: Number of retry attempts (default: 3)
+   - `resume.matching.ai-retry-delay-ms`: Initial delay between retries in milliseconds (default: 1000)
+   - `resume.matching.ai-retry-max-delay-ms`: Maximum delay between retries in milliseconds (default: 10000)
+   - `resume.matching.ai-retry-multiplier`: Multiplier for exponential backoff (default: 2.0)
+
+### Implementation Details
+
+The error handling and retry mechanism is implemented in the following components:
+
+1. **RetryConfig**: Configures the RetryTemplate with the appropriate retry policy and backoff strategy, specifically handling ResourceAccessException for network issues.
+
+2. **ResumeMatchingServiceImpl**: Uses the RetryTemplate to execute AI API calls with retry logic and provides fallback mechanisms.
+
+3. **ResumeVectorStoreConfig**: Implements retry logic for embedding operations with proper exception handling and fallback mechanisms.
+
+4. **application.properties**: Contains the configuration parameters for the retry mechanism.
 
 ## Getting Started
 
 ### Prerequisites
 
 - Java 17 or higher
-- Maven
-- Git
+- PostgreSQL 14 or higher with pgvector extension
+- Maven 3.8 or higher
 
-### Installation
+### Configuration
 
-1. Clone the repository
-   ```
-   git clone https://github.com/FC-JAVA-TEAM/spring-ai-resume-matcher.git
-   ```
+Configure the application in `application.properties`:
 
-2. Navigate to the project directory
-   ```
-   cd spring-ai-resume-matcher
-   ```
+```properties
+# Database configuration
+spring.datasource.url=jdbc:postgresql://localhost:5432/postgres
+spring.datasource.username=your_username
+spring.datasource.password=your_password
 
-3. Build the project
-   ```
-   mvn clean install
-   ```
+# Fuelix.ai configuration
+fuelix.api.base-url=https://api-beta.fuelix.ai
+fuelix.api.token=your_api_token
+fuelix.api.model=claude-3-7-sonnet
+fuelix.api.embedding-model=text-embedding-ada-002
 
-4. Run the application
-   ```
-   mvn spring-boot:run
-   ```
+# Retry configuration
+resume.matching.ai-retry-count=3
+resume.matching.ai-retry-delay-ms=1000
+resume.matching.ai-retry-max-delay-ms=10000
+resume.matching.ai-retry-multiplier=2.0
+```
 
-5. Access the application at `http://localhost:8080`
+### Running the Application
 
-## Project Structure
+```bash
+mvn spring-boot:run
+```
 
-- `src/main/java/com/telus/spring/ai/resume`: Core resume processing functionality
-- `src/main/java/com/telus/spring/ai/resume/ui`: Vaadin UI components
-- `src/main/resources/templates`: Thymeleaf templates
-- `src/main/resources/static`: Static resources (CSS, JS)
-- `src/main/resources/prompts`: AI prompt templates
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+The application will be available at http://localhost:8080.

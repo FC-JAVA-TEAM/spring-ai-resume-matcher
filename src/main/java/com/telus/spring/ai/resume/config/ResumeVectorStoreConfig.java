@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.retry.support.RetryTemplate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,8 +36,12 @@ public class ResumeVectorStoreConfig {
      */
     @Bean
     @Qualifier("resumeVectorStore")
-    public VectorStore resumeVectorStore(JdbcTemplate jdbcTemplate, EmbeddingModel embeddingModel, ObjectMapper objectMapper) {
-        return new ResumeVectorStore(jdbcTemplate, embeddingModel, objectMapper);
+    public VectorStore resumeVectorStore(
+            JdbcTemplate jdbcTemplate, 
+            EmbeddingModel embeddingModel, 
+            ObjectMapper objectMapper,
+            RetryTemplate aiRetryTemplate) {
+        return new ResumeVectorStore(jdbcTemplate, embeddingModel, objectMapper, aiRetryTemplate);
     }
     
     /**
@@ -49,52 +54,85 @@ public class ResumeVectorStoreConfig {
         private final JdbcTemplate jdbcTemplate;
         private final EmbeddingModel embeddingModel;
         private final ObjectMapper objectMapper;
+        private final RetryTemplate retryTemplate;
         
-        public ResumeVectorStore(JdbcTemplate jdbcTemplate, EmbeddingModel embeddingModel, ObjectMapper objectMapper) {
+        public ResumeVectorStore(
+                JdbcTemplate jdbcTemplate, 
+                EmbeddingModel embeddingModel, 
+                ObjectMapper objectMapper,
+                RetryTemplate retryTemplate) {
             this.jdbcTemplate = jdbcTemplate;
             this.embeddingModel = embeddingModel;
             this.objectMapper = objectMapper;
+            this.retryTemplate = retryTemplate;
         }
         
         @Override
         public void add(List<Document> documents) {
             for (Document document : documents) {
-                // Generate embedding
-                float[] embedding = embeddingModel.embed(document);
-                
-                // Convert embedding to PostgreSQL vector format
-                String vectorString = convertToVectorString(embedding);
-                
-                // Get resumeId as string and convert to UUID
-                String resumeIdStr = document.getMetadata().get("resumeId").toString();
-                UUID resumeId = UUID.fromString(resumeIdStr);
-                
-                // Convert metadata to proper JSON string using ObjectMapper
-                String metadataJson;
                 try {
-                    metadataJson = objectMapper.writeValueAsString(document.getMetadata());
-                } catch (JsonProcessingException e) {
-                    logger.error("Error converting metadata to JSON: {}", e.getMessage());
-                    // Fallback to empty JSON object if conversion fails
-                    metadataJson = "{}";
+                    // Generate embedding with retry for network issues
+                    float[] embedding = retryTemplate.execute(context -> {
+                        try {
+                            return embeddingModel.embed(document);
+                        } catch (Exception e) {
+                            logger.error("Error generating embedding: {}", e.getMessage());
+                            throw e;
+                        }
+                    }, context -> {
+                        // Fallback when all retries fail
+                        logger.error("All retries failed for embedding generation. Using fallback empty embedding.");
+                        return new float[1536]; // Default embedding dimension
+                    });
+                    
+                    // Convert embedding to PostgreSQL vector format
+                    String vectorString = convertToVectorString(embedding);
+                    
+                    // Get resumeId as string and convert to UUID
+                    String resumeIdStr = document.getMetadata().get("resumeId").toString();
+                    UUID resumeId = UUID.fromString(resumeIdStr);
+                    
+                    // Convert metadata to proper JSON string using ObjectMapper
+                    String metadataJson;
+                    try {
+                        metadataJson = objectMapper.writeValueAsString(document.getMetadata());
+                    } catch (JsonProcessingException e) {
+                        logger.error("Error converting metadata to JSON: {}", e.getMessage());
+                        // Fallback to empty JSON object if conversion fails
+                        metadataJson = "{}";
+                    }
+                    
+                    // Insert into resume_vector_store table
+                    jdbcTemplate.update(
+                        "INSERT INTO resume_vector_store (id, resume_id, content, metadata, embedding) VALUES (?, ?, ?, ?::json, ?::vector)",
+                        UUID.randomUUID(),
+                        resumeId,  // Now it's a UUID
+                        document.getContent(),
+                        metadataJson,  // Properly formatted JSON
+                        vectorString
+                    );
+                } catch (Exception e) {
+                    logger.error("Error adding document to vector store: {}", e.getMessage(), e);
+                    // Continue with the next document
                 }
-                
-                // Insert into resume_vector_store table
-                jdbcTemplate.update(
-                    "INSERT INTO resume_vector_store (id, resume_id, content, metadata, embedding) VALUES (?, ?, ?, ?::json, ?::vector)",
-                    UUID.randomUUID(),
-                    resumeId,  // Now it's a UUID
-                    document.getContent(),
-                    metadataJson,  // Properly formatted JSON
-                    vectorString
-                );
             }
         }
         
         @Override
         public List<Document> similaritySearch(SearchRequest request) {
-            // Generate embedding for the query
-            float[] queryEmbedding = embeddingModel.embed(request.getQuery());
+            // Generate embedding for the query with retry for network issues
+            float[] queryEmbedding = retryTemplate.execute(context -> {
+                try {
+                    return embeddingModel.embed(request.getQuery());
+                } catch (Exception e) {
+                    logger.error("Error generating query embedding: {}", e.getMessage());
+                    throw e;
+                }
+            }, context -> {
+                // Fallback when all retries fail
+                logger.error("All retries failed for query embedding generation. Using fallback empty embedding.");
+                return new float[1536]; // Default embedding dimension
+            });
             
             // Convert embedding to PostgreSQL vector format
             String vectorString = convertToVectorString(queryEmbedding);

@@ -1,26 +1,5 @@
 package com.telus.spring.ai.resume.service.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
-import com.telus.spring.ai.resume.model.Resume;
-import com.telus.spring.ai.resume.model.ResumeParseResult;
-import com.telus.spring.ai.resume.model.SyncResult;
-import com.telus.spring.ai.resume.repository.ResumeRepository;
-import com.telus.spring.ai.resume.service.ResumeStorageService;
-
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -32,6 +11,27 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.telus.spring.ai.resume.model.Resume;
+import com.telus.spring.ai.resume.model.ResumeParseResult;
+import com.telus.spring.ai.resume.model.SyncResult;
+import com.telus.spring.ai.resume.repository.ResumeRepository;
+import com.telus.spring.ai.resume.service.ResumeStorageService;
 
 /**
  * Implementation of ResumeStorageService that stores resumes in a database
