@@ -39,20 +39,14 @@ public class FuelixAiConfig {
 	@Bean
 	@Primary
 	public ChatModel chatModel(OpenAiApi openAiApi) {
-		// Create a simple OpenAiChatModel with the API
-		OpenAiChatModel chatModel = new OpenAiChatModel(openAiApi);
+		// Create OpenAiChatOptions with the model name from configuration
+		OpenAiChatOptions options = OpenAiChatOptions.builder()
+				.model(model)  // Use the model name from configuration
+				.temperature(0.7)  // Using Double instead of float
+				.build();
 		
-		// Set the model name using reflection to override the default
-		try {
-			java.lang.reflect.Field modelField = OpenAiChatModel.class.getDeclaredField("model");
-			modelField.setAccessible(true);
-			modelField.set(chatModel, model);
-		} catch (Exception e) {
-			// If reflection fails, log the error but continue
-			System.err.println("Failed to set model name: " + e.getMessage());
-		}
-		
-		return chatModel;
+		// Create OpenAiChatModel with the options
+		return new OpenAiChatModel(openAiApi, options);
 	}
 	
 	@Bean
