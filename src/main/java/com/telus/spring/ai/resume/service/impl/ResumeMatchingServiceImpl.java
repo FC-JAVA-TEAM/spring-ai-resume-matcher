@@ -2,15 +2,18 @@ package com.telus.spring.ai.resume.service.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -42,7 +45,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     private static final Logger logger = LoggerFactory.getLogger(ResumeMatchingServiceImpl.class);
     
     private  VectorStore vectorStore;
-    private final ChatClient chatClient;
+    private final ChatModel chatModel;
     private final ResumeRepository resumeRepository;
     private final String resumeMatchPrompt;
     private final RetryTemplate aiRetryTemplate;
@@ -61,12 +64,12 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     public ResumeMatchingServiceImpl(
             @Qualifier("resumeVectorStore") VectorStore vectorStore,
     	//	VectorStore vectorStore,
-            ChatClient.Builder builder,
+            ChatModel chatModel,
             ResumeRepository resumeRepository,
             @Qualifier("resumeMatchPrompt") String resumeMatchPrompt,
             RetryTemplate aiRetryTemplate) {
         this.vectorStore = vectorStore;
-        this.chatClient = builder.build();
+        this.chatModel = chatModel;
         this.resumeRepository = resumeRepository;
         this.resumeMatchPrompt = resumeMatchPrompt;
         this.aiRetryTemplate = aiRetryTemplate;
@@ -78,9 +81,11 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
         
         // Search for similar documents in the vector store
         List<Document> documents = vectorStore.similaritySearch(
-                SearchRequest.query(jobDescription)
-                        .withTopK(limit)
-                        .withFilterExpression("metadata.type == 'resume'")
+                SearchRequest.builder()
+                        .query(jobDescription)
+                        .topK(limit)
+                        // Filter is applied at the database level in the custom ResumeVectorStore implementation
+                        .build()
         );
         
         logger.info("Found {} matching documents", documents.size());
@@ -116,7 +121,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
             Map<String, Object> metadata = document.getMetadata();
             
             // Get resume ID from metadata
-            String resumeIdStr = metadata.get("resumeId").toString();
+            String resumeIdStr = String.valueOf(metadata.get("resumeId"));
             UUID resumeId = UUID.fromString(resumeIdStr);
             
             // Create Resume object directly from metadata if possible
@@ -132,7 +137,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                 resume.setName(metadata.get("name").toString());
                 resume.setEmail(metadata.get("email").toString());
                 resume.setPhoneNumber(metadata.get("phoneNumber").toString());
-                resume.setFullText(document.getContent());
+                resume.setFullText((String) document.getContent());
                 
                 if (metadata.containsKey("fileType")) {
                     resume.setFileType(metadata.get("fileType").toString());
@@ -189,12 +194,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                 }
                 
                 // Make the AI call
-                return chatClient.prompt(prompt)
-                        .call()
-                        .chatResponse()
-                        .getResult()
-                        .getOutput()
-                        .getContent();
+                return chatModel.call(prompt).getResult().getOutput().getContent();
             }, context -> {
                 // This is the recovery callback - called when all retries fail
                 logger.error("All retries failed for resume {}: {}", 
@@ -252,12 +252,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                         }
                         
                         // Make the AI call
-                        return chatClient.prompt(prompt)
-                                .call()
-                                .chatResponse()
-                                .getResult()
-                                .getOutput()
-                                .getContent();
+                return chatModel.call(prompt).getResult().getOutput().getContent();
                     }, context -> {
                         // This is the recovery callback - called when all retries fail
                         logger.error("All async retries failed for resume {}: {}", 
