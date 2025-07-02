@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.SystemPromptTemplate;
 import org.springframework.ai.chat.messages.Message;
@@ -78,9 +79,10 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     @Override
     public List<ResumeMatch> findMatchingResumes(String jobDescription, int limit) {
         logger.info("Finding resumes matching job description: {}", jobDescription);
-        
+		SearchRequest searchRequest = new SearchRequest.Builder().query(jobDescription).topK(limit).build();
         // Search for similar documents in the vector store
-        List<Document> documents = vectorStore.similaritySearch(jobDescription);
+        
+        List<Document> documents = vectorStore.similaritySearch(searchRequest);
         
         // Filter documents to only include resumes and limit the results
         documents = documents.stream()
@@ -203,7 +205,16 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                 
                 // Make the AI call
                 ChatResponse response = chatModel.call(prompt);
-                return response.getResult().getOutput().toString();
+                
+                
+            //    ChatResponse response = chatModel.call(prompt);
+               AssistantMessage assistantMessage = response.getResult().getOutput();
+              String result = assistantMessage.getText();
+            //    return assistantMessage.getContent(); // Get just the content
+
+              
+              return result;
+               // return response.getResult().getOutput().toString();
             }, context -> {
                 // This is the recovery callback - called when all retries fail
                 logger.error("All retries failed for resume {}: {}", 
@@ -268,7 +279,13 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                         
                         // Make the AI call
                         ChatResponse response = chatModel.call(prompt);
-                        return response.getResult().getOutput().toString();
+                        
+                        
+                        AssistantMessage assistantMessage = response.getResult().getOutput();
+                        String result = assistantMessage.getText();
+                        
+                        return result;
+                       // return response.getResult().getOutput().toString();
                     }, context -> {
                         // This is the recovery callback - called when all retries fail
                         logger.error("All async retries failed for resume {}: {}", 
