@@ -103,6 +103,22 @@ public class ResumeController {
 
 		return ResponseEntity.ok(responses);
 	}
+	
+	@PostMapping("/match-new")
+	public ResponseEntity<List<ResumeMatch>> matchResumes_new(@RequestParam("jd") String jobDescription,
+			@RequestParam(value = "limit", defaultValue = "5") int limit) {
+		logger.info("Matching resumes to job description, limit: {}", limit);
+
+		// Find matching resumes - this method is internally optimized for parallel
+		// processing
+		List<ResumeMatch> matches = matchingService.findMatchingResumes(jobDescription, limit);
+
+		// Convert to response objects with match information
+		
+		logger.info("Found {} matching resumes", matches.size());
+
+		return ResponseEntity.ok(matches);
+	}
 
 	/**
 	 * Get a resume by ID.
