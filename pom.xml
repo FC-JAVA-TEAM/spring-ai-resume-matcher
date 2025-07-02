@@ -39,10 +39,7 @@
 		</dependency>
 
 		<!-- Thymeleaf for UI -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-thymeleaf</artifactId>
-		</dependency>
+		
 
 		<!-- Added Thymeleaf for UI after removing Vaadin -->
 		<!-- Vaadin for UI -->

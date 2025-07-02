@@ -11,11 +11,16 @@ ${resumeText}
 
 ANALYSIS INSTRUCTIONS:
 Evaluate the match based on these weighted categories:
-1. Technical Skills (30%): Compare required skills with candidate's skills
+1. Technical Skills (40%): Compare required skills with candidate's skills
 2. Experience (25%): Assess relevance and years of experience
-3. Education (15%): Evaluate only formal education (degrees/diplomas) - DO NOT consider certifications
+3. Education (10%): Evaluate only formal education (degrees/diplomas) - DO NOT consider certifications
 4. Soft Skills & Cultural Fit (15%): Evaluate communication and teamwork indicators
-5. Achievements & Impact (15%): Assess measurable results and problem-solving
+5. Achievements & Impact (10%): Assess measurable results and problem-solving
+
+For each technical skill mentioned, provide a brief 1-2 line explanation of:
+- What the skill is used for
+- How relevant it is to the job description
+- The candidate's apparent proficiency level
 
 
 RESPONSE FORMAT:
@@ -30,14 +35,19 @@ RESPONSE FORMAT:
    • [Gap] - [Brief suggestion]
 
 5. CATEGORY SCORES:
-   • Technical Skills: [X/30]
-   • Experience: [X/25]
-   • Education & Certifications: [X/15] - Based ONLY on formal education, not certifications
-   • Soft Skills: [X/15]
-   • Achievements: [X/15]
+   • Technical Skills: [X/40] - Score out of 40 points
+   • Experience: [X/25] - Score out of 25 points
+   • Education: [X/10] - Score out of 10 points, based ONLY on formal education, not certifications
+   • Soft Skills: [X/15] - Score out of 15 points
+   • Achievements: [X/10] - Score out of 10 points
 
-6. RECOMMENDATION: [Match/Potential/Not Recommended] - [Brief reason]
+6. SKILL EXPLANATIONS (for each relevant technical skill):
+   • [Skill Name]: [1-2 sentence explanation about relevance and proficiency]
+
+7. RECOMMENDATION: [Match/Potential/Not Recommended] - [Brief reason 3-4 sentences]
 
 Be objective, evidence-based, and focus on the most important factors.
 Avoid assumptions about candidate characteristics not evident in the resume
 Present information in a clear, structured format that aids quick decision-making
+
+${format}

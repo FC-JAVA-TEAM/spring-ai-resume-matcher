@@ -41,4 +41,6 @@ public class PromptTemplateConfig {
             return FileCopyUtils.copyToString(reader);
         }
     }
+    
+    // Note: The ResumeAnalysisConverter is now auto-configured via @Component annotation
 }

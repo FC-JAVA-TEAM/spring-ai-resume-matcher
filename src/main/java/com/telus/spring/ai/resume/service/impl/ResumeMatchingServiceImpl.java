@@ -10,7 +10,9 @@ import org.springframework.ai.chat.prompt.SystemPromptTemplate;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.document.Document;
+import com.telus.spring.ai.resume.converter.ResumeAnalysisConverter;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.telus.spring.ai.resume.model.Resume;
+import com.telus.spring.ai.resume.model.ResumeAnalysis;
 import com.telus.spring.ai.resume.model.ResumeMatch;
 import com.telus.spring.ai.resume.repository.ResumeRepository;
 import com.telus.spring.ai.resume.service.ResumeMatchingService;
@@ -51,6 +54,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     private final ResumeRepository resumeRepository;
     private final String resumeMatchPrompt;
     private final RetryTemplate aiRetryTemplate;
+    private final ResumeAnalysisConverter resumeAnalysisConverter;
     
     @Value("${resume.matching.ai-timeout-seconds:30}")
     private int aiOperationTimeoutSeconds;
@@ -68,12 +72,14 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
             ChatModel chatModel,
             ResumeRepository resumeRepository,
             @Qualifier("resumeMatchPrompt") String resumeMatchPrompt,
-            RetryTemplate aiRetryTemplate) {
+            RetryTemplate aiRetryTemplate,
+            ResumeAnalysisConverter resumeAnalysisConverter) {
         this.vectorStore = vectorStore;
         this.chatModel = chatModel;
         this.resumeRepository = resumeRepository;
         this.resumeMatchPrompt = resumeMatchPrompt;
         this.aiRetryTemplate = aiRetryTemplate;
+        this.resumeAnalysisConverter = resumeAnalysisConverter;
     }
     
     @Override
@@ -160,8 +166,24 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
             // Generate explanation asynchronously
             return explainMatchAsync(resume, jobDescription)
                 .thenApply(explanation -> {
-                    int score = extractScoreFromExplanation(explanation);
-                    ResumeMatch match = new ResumeMatch(resume, score, explanation);
+                    // Try to convert the explanation to a structured analysis
+                    ResumeAnalysis analysis = null;
+                    int score;
+                    
+                    try {
+                        analysis = resumeAnalysisConverter.convert(explanation);
+                        if (analysis == null) {
+                            throw new IllegalStateException("Converter returned null analysis");
+                        }
+                        // Use the score from the analysis if available
+                        score = analysis.getOverallScore();
+                    } catch (Exception e) {
+                        logger.warn("Failed to convert explanation to structured analysis: {}", e.getMessage());
+                        // Fall back to regex extraction if conversion fails
+                        score = extractScoreFromExplanation(explanation);
+                    }
+                    
+                    ResumeMatch match = new ResumeMatch(resume, score, explanation, analysis);
                     logger.info("Processed match for resume: {}, score: {}", resumeId, score);
                     return match;
                 })
@@ -184,10 +206,14 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
             // Create a system prompt template from the injected template string
             SystemPromptTemplate template = new SystemPromptTemplate(resumeMatchPrompt);
             
-            // Create the message with variables
+            // Get format instructions from the converter
+            String format = resumeAnalysisConverter.getFormat();
+            
+            // Create the message with variables including format instructions
             Message systemMessage = template.createMessage(Map.of(
                     "jobDescription", jobDescription,
-                    "resumeText", resume.getFullText()
+                    "resumeText", resume.getFullText(),
+                    "format", format
             ));
             
             // Create a prompt with both system message and user message
@@ -252,10 +278,14 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
             // Create a system prompt template from the injected template string
             SystemPromptTemplate template = new SystemPromptTemplate(resumeMatchPrompt);
             
-            // Create the message with variables
+            // Get format instructions from the converter
+            String format = resumeAnalysisConverter.getFormat();
+            
+            // Create the message with variables including format instructions
             Message systemMessage = template.createMessage(Map.of(
                     "jobDescription", jobDescription,
-                    "resumeText", resume.getFullText()
+                    "resumeText", resume.getFullText(),
+                    "format", format
             ));
             
             // Create a prompt with both system message and user message

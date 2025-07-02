@@ -1,7 +1,13 @@
 package com.telus.spring.ai.resume.service.ui;
 
 import com.telus.spring.ai.resume.model.Resume;
+import com.telus.spring.ai.resume.model.ResumeAnalysis;
+import com.telus.spring.ai.resume.model.ResumeMatch;
+import com.telus.spring.ai.resume.service.ResumeMatchingService;
 import com.telus.spring.ai.resume.service.ResumeStorageService;
+
+import java.util.List;
+import java.util.ArrayList;
 import com.vaadin.flow.component.accordion.Accordion;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -19,6 +25,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.BeforeEvent;
@@ -41,13 +48,16 @@ import java.util.UUID;
 public class ResumeDetailView extends VerticalLayout implements HasUrlParameter<String> {
 
     private final ResumeStorageService resumeStorageService;
+    private final ResumeMatchingService resumeMatchingService;
     
     private UUID resumeId;
     private Resume resume;
+    private ResumeAnalysis analysis;
     private boolean fromMatchResults = false;
 
-    public ResumeDetailView(ResumeStorageService resumeStorageService) {
+    public ResumeDetailView(ResumeStorageService resumeStorageService, ResumeMatchingService resumeMatchingService) {
         this.resumeStorageService = resumeStorageService;
+        this.resumeMatchingService = resumeMatchingService;
         
         addClassName("resume-detail-view");
         setSizeFull();
@@ -333,7 +343,29 @@ public class ResumeDetailView extends VerticalLayout implements HasUrlParameter<
         Div contentDiv = new Div();
         contentDiv.setWidthFull();
         
-        // Enhanced AI analysis section with modern design
+        // Try to get analysis data if available
+        if (analysis == null) {
+            // Check if we have a match result with analysis
+            try {
+                // This is a placeholder - we would need to implement this method in ResumeMatchingService
+                // For now, we'll just use the default view
+                /*
+                List<ResumeMatch> matches = resumeMatchingService.getRecentMatchesForResume(resumeId, 1);
+                if (!matches.isEmpty() && matches.get(0).getAnalysis() != null) {
+                    analysis = matches.get(0).getAnalysis();
+                }
+                */
+            } catch (Exception e) {
+                // Ignore errors, we'll use the default view
+            }
+        }
+        
+        // If we have structured analysis data, use that
+        if (analysis != null) {
+            return createStructuredAnalysisView(analysis);
+        }
+        
+        // Enhanced AI analysis section with modern design (default view)
         VerticalLayout analysisLayout = new VerticalLayout();
         analysisLayout.setPadding(true);
         analysisLayout.setSpacing(true);
@@ -418,6 +450,471 @@ public class ResumeDetailView extends VerticalLayout implements HasUrlParameter<
     }
     
     /**
+     * Creates a structured analysis view based on the ResumeAnalysis object.
+     */
+    private Div createStructuredAnalysisView(ResumeAnalysis analysis) {
+        Div contentDiv = new Div();
+        contentDiv.setWidthFull();
+        
+        // Enhanced AI analysis section with modern design
+        VerticalLayout analysisLayout = new VerticalLayout();
+        analysisLayout.setPadding(true);
+        analysisLayout.setSpacing(true);
+        analysisLayout.setWidthFull();
+        
+        // AI Analysis header with icon
+        HorizontalLayout headerLayout = new HorizontalLayout();
+        headerLayout.setWidthFull();
+        headerLayout.setAlignItems(Alignment.CENTER);
+        headerLayout.addClassNames(
+                LumoUtility.Background.PRIMARY_10,
+                LumoUtility.BorderRadius.MEDIUM,
+                LumoUtility.Padding.MEDIUM);
+        
+        Icon aiIcon = new Icon(VaadinIcon.AUTOMATION);
+        aiIcon.setSize("2em");
+        aiIcon.setColor("var(--lumo-primary-color)");
+        
+        H3 title = new H3("AI Resume Analysis");
+        title.addClassNames(LumoUtility.Margin.NONE, LumoUtility.FontSize.XLARGE);
+        
+        headerLayout.add(aiIcon, title);
+        
+        // Executive Summary Section
+        if (analysis.getExecutiveSummary() != null) {
+            Div summarySection = new Div();
+            summarySection.addClassNames(
+                    LumoUtility.Padding.SMALL,
+                    LumoUtility.Margin.Bottom.SMALL,
+                    LumoUtility.BorderRadius.SMALL);
+            summarySection.getStyle().set("border-left", "4px solid var(--lumo-primary-color)");
+            summarySection.getStyle().set("background-color", "var(--lumo-primary-color-10%)");
+            
+            H4 summaryTitle = new H4("Executive Summary");
+            summaryTitle.addClassNames(
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.Margin.Bottom.XSMALL,
+                    LumoUtility.FontSize.MEDIUM);
+            
+            Paragraph summaryText = new Paragraph(analysis.getExecutiveSummary());
+            summaryText.addClassNames(
+                    LumoUtility.TextColor.BODY,
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.FontSize.SMALL);
+            summaryText.getStyle().set("line-height", "1.4");
+            
+            summarySection.add(summaryTitle, summaryText);
+            analysisLayout.add(summarySection);
+        }
+        
+        // Overall Score Section
+        if (analysis.getOverallScore() != null) {
+            Div scoreSection = new Div();
+            scoreSection.addClassNames(
+                    LumoUtility.Padding.SMALL,
+                    LumoUtility.Margin.Bottom.SMALL,
+                    LumoUtility.BorderRadius.SMALL);
+            scoreSection.getStyle().set("border-left", "4px solid var(--lumo-primary-color)");
+            scoreSection.getStyle().set("background-color", "var(--lumo-primary-color-10%)");
+            
+            H4 scoreTitle = new H4("Overall Match Score");
+            scoreTitle.addClassNames(
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.Margin.Bottom.MEDIUM,
+                    LumoUtility.FontSize.MEDIUM);
+            
+            // Create a circular progress indicator
+            Div scoreIndicator = new Div();
+            scoreIndicator.addClassNames(
+                    LumoUtility.Display.FLEX,
+                    LumoUtility.AlignItems.CENTER,
+                    LumoUtility.JustifyContent.CENTER,
+                    LumoUtility.Margin.Horizontal.AUTO);
+            
+            int score = analysis.getOverallScore();
+            String scoreColor = getScoreColor(score / 100.0);
+            
+            Div circleWrapper = new Div();
+            circleWrapper.getStyle().set("position", "relative");
+            circleWrapper.getStyle().set("width", "120px");
+            circleWrapper.getStyle().set("height", "120px");
+            
+            Div circle = new Div();
+            circle.getStyle().set("border-radius", "50%");
+            circle.getStyle().set("width", "100%");
+            circle.getStyle().set("height", "100%");
+            circle.getStyle().set("border", "10px solid var(--lumo-contrast-10%)");
+            circle.getStyle().set("border-top", "10px solid " + scoreColor);
+            circle.getStyle().set("transform", "rotate(" + (score * 3.6) + "deg)");
+            circle.getStyle().set("box-sizing", "border-box");
+            
+            Div scoreValue = new Div();
+            scoreValue.addClassNames(
+                    LumoUtility.Display.FLEX,
+                    LumoUtility.AlignItems.CENTER,
+                    LumoUtility.JustifyContent.CENTER);
+            scoreValue.getStyle().set("position", "absolute");
+            scoreValue.getStyle().set("top", "50%");
+            scoreValue.getStyle().set("left", "50%");
+            scoreValue.getStyle().set("transform", "translate(-50%, -50%)");
+            
+            Span scoreText = new Span(score + "%");
+            scoreText.addClassNames(LumoUtility.FontWeight.BOLD, LumoUtility.FontSize.XLARGE);
+            scoreText.getStyle().set("color", scoreColor);
+            
+            scoreValue.add(scoreText);
+            circleWrapper.add(circle, scoreValue);
+            scoreIndicator.add(circleWrapper);
+            
+            // Add score description
+            Paragraph scoreDescription = new Paragraph(getScoreDescription(score));
+            scoreDescription.addClassNames(
+                    LumoUtility.TextColor.SECONDARY,
+                    LumoUtility.FontSize.SMALL,
+                    LumoUtility.TextAlignment.CENTER,
+                    LumoUtility.Margin.Top.MEDIUM);
+            
+            scoreSection.add(scoreTitle, scoreIndicator, scoreDescription);
+            analysisLayout.add(scoreSection);
+        }
+        
+        // Category Scores Section
+        if (analysis.getCategoryScores() != null) {
+            Div scoresSection = new Div();
+            scoresSection.addClassNames(
+                    LumoUtility.Padding.SMALL,
+                    LumoUtility.Margin.Bottom.SMALL,
+                    LumoUtility.BorderRadius.SMALL);
+            scoresSection.getStyle().set("border-left", "4px solid var(--lumo-contrast-70pct)");
+            scoresSection.getStyle().set("background-color", "var(--lumo-contrast-5%)");
+            
+            H4 scoresTitle = new H4("Category Scores");
+            scoresTitle.addClassNames(
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.Margin.Bottom.MEDIUM,
+                    LumoUtility.FontSize.MEDIUM);
+            
+            scoresSection.add(scoresTitle);
+            
+            // Add category scores with correct maximum values based on the prompt weights
+            addCategoryScore(scoresSection, "Technical Skills", analysis.getCategoryScores().getTechnicalSkills(), 40);
+            addCategoryScore(scoresSection, "Experience", analysis.getCategoryScores().getExperience(), 25);
+            addCategoryScore(scoresSection, "Education", analysis.getCategoryScores().getEducation(), 10);
+            addCategoryScore(scoresSection, "Soft Skills", analysis.getCategoryScores().getSoftSkills(), 15);
+            addCategoryScore(scoresSection, "Achievements", analysis.getCategoryScores().getAchievements(), 10);
+            
+            analysisLayout.add(scoresSection);
+        }
+        
+        // Skill Explanations Section
+        if (analysis.getSkillExplanations() != null && !analysis.getSkillExplanations().isEmpty()) {
+            Div skillsSection = new Div();
+            skillsSection.addClassNames(
+                    LumoUtility.Padding.SMALL,
+                    LumoUtility.Margin.Bottom.SMALL,
+                    LumoUtility.BorderRadius.SMALL);
+            skillsSection.getStyle().set("border-left", "4px solid var(--lumo-primary-color)");
+            skillsSection.getStyle().set("background-color", "var(--lumo-primary-color-10%)");
+            
+            H4 skillsTitle = new H4("Technical Skills Explained");
+            skillsTitle.addClassNames(
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.Margin.Bottom.XSMALL,
+                    LumoUtility.FontSize.MEDIUM);
+            
+            skillsSection.add(skillsTitle);
+            
+            // Add each skill explanation
+            for (Map.Entry<String, String> entry : analysis.getSkillExplanations().entrySet()) {
+                HorizontalLayout skillLayout = new HorizontalLayout();
+                skillLayout.setSpacing(true);
+                skillLayout.setPadding(false);
+                skillLayout.setAlignItems(Alignment.START);
+                
+                Icon skillIcon = new Icon(VaadinIcon.CODE);
+                skillIcon.setColor("var(--lumo-primary-color)");
+                skillIcon.setSize("1em");
+                
+                VerticalLayout skillContent = new VerticalLayout();
+                skillContent.setPadding(false);
+                skillContent.setSpacing(false);
+                
+                Span skillName = new Span(entry.getKey());
+                skillName.addClassNames(LumoUtility.FontWeight.BOLD, LumoUtility.FontSize.SMALL);
+                
+                Paragraph explanationText = new Paragraph(entry.getValue());
+                explanationText.addClassNames(
+                        LumoUtility.TextColor.SECONDARY,
+                        LumoUtility.Margin.NONE,
+                        LumoUtility.FontSize.XSMALL);
+                explanationText.getStyle().set("line-height", "1.4");
+                
+                skillContent.add(skillName, explanationText);
+                skillLayout.add(skillIcon, skillContent);
+                skillsSection.add(skillLayout);
+            }
+            
+            analysisLayout.add(skillsSection);
+        }
+        
+        // Key Strengths Section
+        if (analysis.getKeyStrengths() != null && !analysis.getKeyStrengths().isEmpty()) {
+            Div strengthsSection = new Div();
+            strengthsSection.addClassNames(
+                    LumoUtility.Padding.SMALL,
+                    LumoUtility.Margin.Bottom.SMALL,
+                    LumoUtility.BorderRadius.SMALL);
+            strengthsSection.getStyle().set("border-left", "4px solid var(--lumo-success-color)");
+            strengthsSection.getStyle().set("background-color", "var(--lumo-success-color-10%)");
+            
+            H4 strengthsTitle = new H4("Key Strengths");
+            strengthsTitle.addClassNames(
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.Margin.Bottom.XSMALL,
+                    LumoUtility.FontSize.MEDIUM);
+            
+            strengthsSection.add(strengthsTitle);
+            
+            // Add each strength
+            for (ResumeAnalysis.KeyStrength strength : analysis.getKeyStrengths()) {
+                HorizontalLayout strengthLayout = new HorizontalLayout();
+                strengthLayout.setSpacing(true);
+                strengthLayout.setPadding(false);
+                strengthLayout.setAlignItems(Alignment.START);
+                
+                Icon bulletIcon = new Icon(VaadinIcon.CHECK_CIRCLE);
+                bulletIcon.setColor("var(--lumo-success-color)");
+                bulletIcon.setSize("1em");
+                
+                VerticalLayout strengthContent = new VerticalLayout();
+                strengthContent.setPadding(false);
+                strengthContent.setSpacing(false);
+                
+                Span strengthText = new Span(strength.getStrength());
+                strengthText.addClassNames(LumoUtility.FontWeight.BOLD, LumoUtility.FontSize.SMALL);
+                
+                Paragraph evidenceText = new Paragraph(strength.getEvidence());
+                evidenceText.addClassNames(
+                        LumoUtility.TextColor.SECONDARY,
+                        LumoUtility.Margin.NONE,
+                        LumoUtility.FontSize.XSMALL);
+                evidenceText.getStyle().set("line-height", "1.4");
+                
+                strengthContent.add(strengthText, evidenceText);
+                strengthLayout.add(bulletIcon, strengthContent);
+                strengthsSection.add(strengthLayout);
+            }
+            
+            analysisLayout.add(strengthsSection);
+        }
+        
+        // Improvement Areas Section
+        if (analysis.getImprovementAreas() != null && !analysis.getImprovementAreas().isEmpty()) {
+            Div improvementSection = new Div();
+            improvementSection.addClassNames(
+                    LumoUtility.Padding.SMALL,
+                    LumoUtility.Margin.Bottom.SMALL,
+                    LumoUtility.BorderRadius.SMALL);
+            improvementSection.getStyle().set("border-left", "4px solid var(--lumo-error-color)");
+            improvementSection.getStyle().set("background-color", "var(--lumo-error-color-10%)");
+            
+            H4 improvementTitle = new H4("Areas for Improvement");
+            improvementTitle.addClassNames(
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.Margin.Bottom.XSMALL,
+                    LumoUtility.FontSize.MEDIUM);
+            
+            improvementSection.add(improvementTitle);
+            
+            // Add each improvement area
+            for (ResumeAnalysis.ImprovementArea area : analysis.getImprovementAreas()) {
+                HorizontalLayout areaLayout = new HorizontalLayout();
+                areaLayout.setSpacing(true);
+                areaLayout.setPadding(false);
+                areaLayout.setAlignItems(Alignment.START);
+                
+                Icon bulletIcon = new Icon(VaadinIcon.EXCLAMATION_CIRCLE);
+                bulletIcon.setColor("var(--lumo-error-color)");
+                bulletIcon.setSize("1em");
+                
+                VerticalLayout areaContent = new VerticalLayout();
+                areaContent.setPadding(false);
+                areaContent.setSpacing(false);
+                
+                Span gapText = new Span(area.getGap());
+                gapText.addClassNames(LumoUtility.FontWeight.BOLD, LumoUtility.FontSize.SMALL);
+                
+                Paragraph suggestionText = new Paragraph(area.getSuggestion());
+                suggestionText.addClassNames(
+                        LumoUtility.TextColor.SECONDARY,
+                        LumoUtility.Margin.NONE,
+                        LumoUtility.FontSize.XSMALL);
+                suggestionText.getStyle().set("line-height", "1.4");
+                
+                areaContent.add(gapText, suggestionText);
+                areaLayout.add(bulletIcon, areaContent);
+                improvementSection.add(areaLayout);
+            }
+            
+            analysisLayout.add(improvementSection);
+        }
+        
+        // Recommendation Section
+        if (analysis.getRecommendation() != null) {
+            Div recommendationSection = new Div();
+            recommendationSection.addClassNames(
+                    LumoUtility.Padding.SMALL,
+                    LumoUtility.Margin.Bottom.SMALL,
+                    LumoUtility.BorderRadius.SMALL);
+            recommendationSection.getStyle().set("border-left", "4px solid var(--lumo-primary-color)");
+            recommendationSection.getStyle().set("background-color", "var(--lumo-primary-color-10%)");
+            
+            H4 recommendationTitle = new H4("Recommendation");
+            recommendationTitle.addClassNames(
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.Margin.Bottom.XSMALL,
+                    LumoUtility.FontSize.MEDIUM);
+            
+            HorizontalLayout recommendationLayout = new HorizontalLayout();
+            recommendationLayout.setSpacing(true);
+            recommendationLayout.setPadding(false);
+            recommendationLayout.setAlignItems(Alignment.START);
+            
+            // Choose icon based on recommendation type
+            Icon recommendationIcon;
+            String iconColor;
+            if ("Match".equalsIgnoreCase(analysis.getRecommendation().getType()) || 
+                "Strong Match".equalsIgnoreCase(analysis.getRecommendation().getType())) {
+                recommendationIcon = new Icon(VaadinIcon.CHECK_CIRCLE);
+                iconColor = "var(--lumo-success-color)";
+            } else if ("Potential Match".equalsIgnoreCase(analysis.getRecommendation().getType())) {
+                recommendationIcon = new Icon(VaadinIcon.QUESTION_CIRCLE);
+                iconColor = "var(--lumo-primary-color)";
+            } else {
+                recommendationIcon = new Icon(VaadinIcon.CLOSE_CIRCLE);
+                iconColor = "var(--lumo-error-color)";
+            }
+            recommendationIcon.setColor(iconColor);
+            recommendationIcon.setSize("1em");
+            
+            VerticalLayout recommendationContent = new VerticalLayout();
+            recommendationContent.setPadding(false);
+            recommendationContent.setSpacing(false);
+            
+            Span typeText = new Span(analysis.getRecommendation().getType());
+            typeText.addClassNames(LumoUtility.FontWeight.BOLD, LumoUtility.FontSize.SMALL);
+            
+            Paragraph reasonText = new Paragraph(analysis.getRecommendation().getReason());
+            reasonText.addClassNames(
+                    LumoUtility.TextColor.SECONDARY,
+                    LumoUtility.Margin.NONE,
+                    LumoUtility.FontSize.XSMALL);
+            reasonText.getStyle().set("line-height", "1.4");
+            
+            recommendationContent.add(typeText, reasonText);
+            recommendationLayout.add(recommendationIcon, recommendationContent);
+            
+            recommendationSection.add(recommendationTitle, recommendationLayout);
+            analysisLayout.add(recommendationSection);
+        }
+        
+        // Match with Job button
+        Button matchButton = new Button("Match with Job", new Icon(VaadinIcon.SEARCH));
+        matchButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        matchButton.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("match")));
+        matchButton.addClassNames(LumoUtility.Margin.Top.MEDIUM);
+        
+        analysisLayout.add(matchButton);
+        
+        contentDiv.add(analysisLayout);
+        return contentDiv;
+    }
+    
+    /**
+     * Adds a category score bar to the given container.
+     */
+    private void addCategoryScore(Div container, String categoryName, Integer score, int maxScore) {
+        if (score == null) return;
+        
+        HorizontalLayout categoryLayout = new HorizontalLayout();
+        categoryLayout.setWidthFull();
+        categoryLayout.setAlignItems(Alignment.CENTER);
+        categoryLayout.addClassNames(LumoUtility.Margin.Bottom.SMALL);
+        
+        // Category name
+        Span nameLabel = new Span(categoryName);
+        nameLabel.addClassNames(LumoUtility.FontSize.SMALL, LumoUtility.TextColor.SECONDARY);
+        nameLabel.setWidth("120px");
+        
+        // Score bar
+        ProgressBar scoreBar = new ProgressBar();
+        scoreBar.setValue((double) score / maxScore);
+        scoreBar.setWidthFull();
+        scoreBar.setHeight("8px");
+        scoreBar.getStyle().set("--lumo-primary-color", getCategoryColor(categoryName));
+        
+        // Score value
+        Span scoreValue = new Span(score + "/" + maxScore);
+        scoreValue.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.SECONDARY);
+        scoreValue.setWidth("50px");
+        scoreValue.getStyle().set("text-align", "right");
+        
+        categoryLayout.add(nameLabel, scoreBar, scoreValue);
+        container.add(categoryLayout);
+    }
+    
+    /**
+     * Gets a color for a category based on its name.
+     */
+    private String getCategoryColor(String categoryName) {
+        categoryName = categoryName.toUpperCase();
+        
+        if (categoryName.contains("TECHNICAL") || categoryName.contains("SKILL")) {
+            return "var(--lumo-primary-color)";
+        } else if (categoryName.contains("EXPERIENCE")) {
+            return "var(--lumo-success-color)";
+        } else if (categoryName.contains("EDUCATION")) {
+            return "var(--lumo-contrast-70pct)";
+        } else if (categoryName.contains("SOFT") || categoryName.contains("COMMUNICATION")) {
+            return "var(--lumo-tertiary-text-color)";
+        } else if (categoryName.contains("ACHIEVEMENT")) {
+            return "var(--lumo-error-color)";
+        } else {
+            return "var(--lumo-contrast-50pct)";
+        }
+    }
+    
+    /**
+     * Gets a color based on score percentage.
+     */
+    private String getScoreColor(double score) {
+        if (score >= 0.8) {
+            return "var(--lumo-success-color)";
+        } else if (score >= 0.6) {
+            return "var(--lumo-primary-color)";
+        } else if (score >= 0.4) {
+            return "var(--lumo-contrast-60pct)";
+        } else {
+            return "var(--lumo-error-color)";
+        }
+    }
+    
+    /**
+     * Gets a description based on score.
+     */
+    private String getScoreDescription(int score) {
+        if (score >= 80) {
+            return "Excellent match for the position";
+        } else if (score >= 60) {
+            return "Good match with relevant qualifications";
+        } else if (score >= 40) {
+            return "Potential match with some relevant experience";
+        } else {
+            return "Limited match for this position";
+        }
+    }
+    
+    /**
      * Creates an analysis card with icon and content.
      */
     private Div createAnalysisCard(String title, VaadinIcon icon, String content, String accentColor) {
@@ -427,9 +924,8 @@ public class ResumeDetailView extends VerticalLayout implements HasUrlParameter<
                 LumoUtility.BorderRadius.MEDIUM,
                 LumoUtility.BoxShadow.SMALL,
                 LumoUtility.Padding.MEDIUM,
-                LumoUtility.Margin.Bottom.MEDIUM,
-                LumoUtility.Border.LEFT,
-                "border-l-4"); // Custom class for left border thickness
+                LumoUtility.Margin.Bottom.MEDIUM);
+        card.getStyle().set("border-left", "4px solid " + accentColor);
         card.getStyle().set("border-left-color", accentColor);
         
         VerticalLayout cardContent = new VerticalLayout();
