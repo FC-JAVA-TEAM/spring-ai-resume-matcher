@@ -12,6 +12,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter.Expression;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -107,7 +108,7 @@ public class ResumeVectorStoreConfig {
                         "INSERT INTO resume_vector_store (id, resume_id, content, metadata, embedding) VALUES (?, ?, ?, ?::json, ?::vector)",
                         UUID.randomUUID(),
                         resumeId,  // Now it's a UUID
-                        document.getContent(),
+                        document,
                         metadataJson,  // Properly formatted JSON
                         vectorString
                     );
@@ -198,10 +199,32 @@ public class ResumeVectorStoreConfig {
             add(documents);
         }
         
+		/*
+		 * @Override public Optional<Boolean> delete(List<String> ids) { if (ids == null
+		 * || ids.isEmpty()) { return Optional.of(false); }
+		 * 
+		 * try { // Convert string IDs to UUIDs and create a list of UUID parameters
+		 * List<UUID> uuidList = ids.stream() .map(UUID::fromString) .toList();
+		 * 
+		 * // Use a parameterized query with UUID array for better security and type
+		 * safety Object[] params = uuidList.toArray(); String placeholders =
+		 * String.join(",", java.util.Collections.nCopies(params.length, "?"));
+		 * 
+		 * // Delete documents with the specified IDs int rowsAffected =
+		 * jdbcTemplate.update( "DELETE FROM resume_vector_store WHERE resume_id IN (" +
+		 * placeholders + ")", params );
+		 * 
+		 * return Optional.of(rowsAffected > 0); } catch (IllegalArgumentException e) {
+		 * // Log error if UUID parsing fails
+		 * System.err.println("Error parsing UUID for deletion: " + e.getMessage());
+		 * return Optional.of(false); } }
+		 */
+        
+        
         @Override
-        public Optional<Boolean> delete(List<String> ids) {
+        public void delete(List<String> ids) {
             if (ids == null || ids.isEmpty()) {
-                return Optional.of(false);
+                return;
             }
             
             try {
@@ -220,14 +243,12 @@ public class ResumeVectorStoreConfig {
                     params
                 );
                 
-                return Optional.of(rowsAffected > 0);
+                logger.info("Deleted {} documents from vector store", rowsAffected);
             } catch (IllegalArgumentException e) {
                 // Log error if UUID parsing fails
-                System.err.println("Error parsing UUID for deletion: " + e.getMessage());
-                return Optional.of(false);
+                logger.error("Error parsing UUID for deletion: {}", e.getMessage());
             }
         }
-        
         /**
          * Convert a float array to a PostgreSQL vector string.
          * 
@@ -245,5 +266,11 @@ public class ResumeVectorStoreConfig {
             sb.append("]");
             return sb.toString();
         }
+
+		@Override
+		public void delete(Expression filterExpression) {
+			// TODO Auto-generated method stub
+			
+		}
     }
 }

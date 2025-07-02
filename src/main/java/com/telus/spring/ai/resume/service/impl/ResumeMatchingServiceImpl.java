@@ -2,15 +2,19 @@ package com.telus.spring.ai.resume.service.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.ai.chat.prompt.SystemPromptTemplate;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -42,7 +46,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     private static final Logger logger = LoggerFactory.getLogger(ResumeMatchingServiceImpl.class);
     
     private  VectorStore vectorStore;
-    private final ChatClient chatClient;
+    private final ChatModel chatModel;
     private final ResumeRepository resumeRepository;
     private final String resumeMatchPrompt;
     private final RetryTemplate aiRetryTemplate;
@@ -60,13 +64,12 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     
     public ResumeMatchingServiceImpl(
             @Qualifier("resumeVectorStore") VectorStore vectorStore,
-    	//	VectorStore vectorStore,
-            ChatClient.Builder builder,
+            ChatModel chatModel,
             ResumeRepository resumeRepository,
             @Qualifier("resumeMatchPrompt") String resumeMatchPrompt,
             RetryTemplate aiRetryTemplate) {
         this.vectorStore = vectorStore;
-        this.chatClient = builder.build();
+        this.chatModel = chatModel;
         this.resumeRepository = resumeRepository;
         this.resumeMatchPrompt = resumeMatchPrompt;
         this.aiRetryTemplate = aiRetryTemplate;
@@ -77,11 +80,16 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
         logger.info("Finding resumes matching job description: {}", jobDescription);
         
         // Search for similar documents in the vector store
-        List<Document> documents = vectorStore.similaritySearch(
-                SearchRequest.query(jobDescription)
-                        .withTopK(limit)
-                        .withFilterExpression("metadata.type == 'resume'")
-        );
+        List<Document> documents = vectorStore.similaritySearch(jobDescription);
+        
+        // Filter documents to only include resumes and limit the results
+        documents = documents.stream()
+                .filter(doc -> {
+                    Object type = doc.getMetadata().get("type");
+                    return type != null && type.equals("resume");
+                })
+                .limit(limit)
+                .collect(Collectors.toList());
         
         logger.info("Found {} matching documents", documents.size());
         
@@ -132,7 +140,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                 resume.setName(metadata.get("name").toString());
                 resume.setEmail(metadata.get("email").toString());
                 resume.setPhoneNumber(metadata.get("phoneNumber").toString());
-                resume.setFullText(document.getContent());
+                resume.setFullText(document.getText());
                 
                 if (metadata.containsKey("fileType")) {
                     resume.setFileType(metadata.get("fileType").toString());
@@ -171,14 +179,19 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
         logger.info("Generating explanation for resume: {}", resume.getId());
         
         try {
-            // Create a prompt template from the injected template string
-            PromptTemplate template = new PromptTemplate(resumeMatchPrompt);
+            // Create a system prompt template from the injected template string
+            SystemPromptTemplate template = new SystemPromptTemplate(resumeMatchPrompt);
             
-            // Create the prompt with variables
-            Prompt prompt = template.create(Map.of(
+            // Create the message with variables
+            Message systemMessage = template.createMessage(Map.of(
                     "jobDescription", jobDescription,
                     "resumeText", resume.getFullText()
             ));
+            
+            // Create a prompt with both system message and user message
+            // Claude models require at least one non-system message
+            UserMessage userMessage = new UserMessage("Please analyze this resume against the job description.");
+            Prompt prompt = new Prompt(List.of(systemMessage, userMessage));
             
             // Get the response from the AI with retry for 503 errors
             String explanation = aiRetryTemplate.execute(context -> {
@@ -189,12 +202,8 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                 }
                 
                 // Make the AI call
-                return chatClient.prompt(prompt)
-                        .call()
-                        .chatResponse()
-                        .getResult()
-                        .getOutput()
-                        .getContent();
+                ChatResponse response = chatModel.call(prompt);
+                return response.getResult().getOutput().toString();
             }, context -> {
                 // This is the recovery callback - called when all retries fail
                 logger.error("All retries failed for resume {}: {}", 
@@ -213,6 +222,7 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
         }
     }
     
+    
     /**
      * Generate an explanation asynchronously for a resume match.
      * This method makes the AI call directly in the async thread for true parallelism.
@@ -228,14 +238,19 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
         logger.info("Generating async explanation for resume: {}", resume.getId());
         
         try {
-            // Create a prompt template from the injected template string
-            PromptTemplate template = new PromptTemplate(resumeMatchPrompt);
+            // Create a system prompt template from the injected template string
+            SystemPromptTemplate template = new SystemPromptTemplate(resumeMatchPrompt);
             
-            // Create the prompt with variables
-            Prompt prompt = template.create(Map.of(
+            // Create the message with variables
+            Message systemMessage = template.createMessage(Map.of(
                     "jobDescription", jobDescription,
                     "resumeText", resume.getFullText()
             ));
+            
+            // Create a prompt with both system message and user message
+            // Claude models require at least one non-system message
+            UserMessage userMessage = new UserMessage("Please analyze this resume against the job description.");
+            Prompt prompt = new Prompt(List.of(systemMessage, userMessage));
             
             // Create a CompletableFuture for the AI call
             CompletableFuture<String> aiCallFuture = new CompletableFuture<>();
@@ -252,12 +267,8 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                         }
                         
                         // Make the AI call
-                        return chatClient.prompt(prompt)
-                                .call()
-                                .chatResponse()
-                                .getResult()
-                                .getOutput()
-                                .getContent();
+                        ChatResponse response = chatModel.call(prompt);
+                        return response.getResult().getOutput().toString();
                     }, context -> {
                         // This is the recovery callback - called when all retries fail
                         logger.error("All async retries failed for resume {}: {}", 
