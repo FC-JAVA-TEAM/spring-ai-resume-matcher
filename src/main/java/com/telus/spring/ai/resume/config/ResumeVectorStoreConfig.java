@@ -108,7 +108,7 @@ public class ResumeVectorStoreConfig {
                         "INSERT INTO resume_vector_store (id, resume_id, content, metadata, embedding) VALUES (?, ?, ?, ?::json, ?::vector)",
                         UUID.randomUUID(),
                         resumeId,  // Now it's a UUID
-                        document,
+                        document.getText(),
                         metadataJson,  // Properly formatted JSON
                         vectorString
                     );

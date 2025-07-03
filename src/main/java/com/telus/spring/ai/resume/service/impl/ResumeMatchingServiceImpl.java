@@ -177,15 +177,22 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                         }
                         // Use the score from the analysis if available
                         score = analysis.getOverallScore();
+                        
+                        // If we have a successful structured analysis, don't include the raw explanation
+                        // to reduce payload size
+                        ResumeMatch match = new ResumeMatch(resume, score, null, analysis);
+                        logger.info("Processed match for resume: {}, score: {}", resumeId, score);
+                        return match;
                     } catch (Exception e) {
                         logger.warn("Failed to convert explanation to structured analysis: {}", e.getMessage());
                         // Fall back to regex extraction if conversion fails
                         score = extractScoreFromExplanation(explanation);
+                        
+                        // In case of conversion failure, include the raw explanation for fallback
+                        ResumeMatch match = new ResumeMatch(resume, score, explanation, null);
+                        logger.info("Processed match for resume: {}, score: {}", resumeId, score);
+                        return match;
                     }
-                    
-                    ResumeMatch match = new ResumeMatch(resume, score, explanation, analysis);
-                    logger.info("Processed match for resume: {}, score: {}", resumeId, score);
-                    return match;
                 })
                 .exceptionally(ex -> {
                     logger.error("Error generating explanation for resume: {}", resumeId, ex);

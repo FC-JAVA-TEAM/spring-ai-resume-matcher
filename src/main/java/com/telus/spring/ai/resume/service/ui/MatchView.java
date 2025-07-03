@@ -396,7 +396,14 @@ public class MatchView extends VerticalLayout {
             return summaryView;
         }
         
-        // Fallback to text parsing if no structured data is available
+        // Fallback to text parsing if no structured data is available and explanation is available
+        if (explanation == null || explanation.isEmpty()) {
+            Paragraph noData = new Paragraph("No analysis data available.");
+            noData.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+            summaryView.add(noData);
+            return summaryView;
+        }
+        
         String analysisSummary = extractAnalysisSummary(explanation);
         
         // Split the analysis into key points

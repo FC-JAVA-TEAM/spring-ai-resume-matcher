@@ -24,7 +24,7 @@ public class ResumeAnalysis {
     private List<KeyStrength> keyStrengths;
     private List<ImprovementArea> improvementAreas;
     private CategoryScores categoryScores;
-    private Map<String, String> skillExplanations;
+    private Map<String, String> skillExplanations = Map.of(); // Initialize as empty map
     private Recommendation recommendation;
     
     /**

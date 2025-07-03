@@ -17,14 +17,9 @@ Evaluate the match based on these weighted categories:
 4. Soft Skills & Cultural Fit (15%): Evaluate communication and teamwork indicators
 5. Achievements & Impact (10%): Assess measurable results and problem-solving
 
-For each technical skill mentioned, provide a brief 1-2 line explanation of:
-- What the skill is used for
-- How relevant it is to the job description
-- The candidate's apparent proficiency level
-
 
 RESPONSE FORMAT:
-1. EXECUTIVE SUMMARY (3-4 sentences)
+1. EXECUTIVE SUMMARY (5-6 sentences)
 
 2. MATCH SCOREing: [X/100]
 
