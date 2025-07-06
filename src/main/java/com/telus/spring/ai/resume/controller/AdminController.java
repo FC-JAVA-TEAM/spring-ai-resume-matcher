@@ -1,19 +1,21 @@
 package com.telus.spring.ai.resume.controller;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.telus.spring.ai.resume.exception.SyncInProgressException;
 import com.telus.spring.ai.resume.model.SyncResult;
 import com.telus.spring.ai.resume.scheduler.VectorStoreSyncScheduler;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Controller for administrative operations. Enhanced to focus on sync
@@ -21,6 +23,8 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/admin")
+
+
 public class AdminController {
 
 	private static final Logger logger = LoggerFactory.getLogger(AdminController.class);

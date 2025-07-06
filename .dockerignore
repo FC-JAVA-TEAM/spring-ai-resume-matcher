@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Build files
+node_modules/
+frontend/generated/
+# Uncommented to allow JAR files to be included in the Docker build
+# target/
+# *.jar
+# *.war
+# *.ear
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+.factorypath
+
+# Logs
+logs/
+*.log
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+HELP.md
+LICENSE
+
+# Test files
+src/test/
+**/test/
+**/tests/

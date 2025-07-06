@@ -48,3 +48,9 @@ webpack.generated.js
 
 # Application specific
 application-local.properties
+.env
+.env.*
+!.env.example
+
+# Cloud deployment
+Dockerfile.local

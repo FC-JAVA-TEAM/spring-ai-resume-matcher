@@ -9,6 +9,40 @@ This application uses Spring AI to match resumes against job descriptions using 
 - Index resumes in a vector store for similarity search
 - Match resumes against job descriptions using AI
 - Provide detailed analysis of resume matches
+- Environment-specific configuration for local, development, and production deployments
+
+## Environment-Based Configuration
+
+The application uses Spring profiles to manage different environments:
+
+### Available Profiles
+
+- **local**: For local development
+- **dev**: For development cloud environment
+- **prod**: For production deployment
+
+### Configuration Structure
+
+- **application.properties**: Common configuration shared across all environments
+- **application-local.properties**: Configuration specific to local development
+- **application-dev.properties**: Configuration specific to development cloud environment
+- **application-prod.properties**: Configuration specific to production deployment
+
+### Environment Variables
+
+Sensitive information like database credentials and API keys are externalized using environment variables:
+
+```
+# Database credentials
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+
+# Fuelix AI credentials
+FUELIX_API_BASE_URL=https://api-beta.fuelix.ai
+FUELIX_API_TOKEN=your_api_token
+FUELIX_API_MODEL=claude-3-7-sonnet
+FUELIX_API_EMBEDDING_MODEL=text-embedding-ada-002
+```
 
 ## Comprehensive Error Handling and Retry Mechanism
 
@@ -32,18 +66,6 @@ The application includes a robust error handling and retry mechanism to handle v
    - `resume.matching.ai-retry-max-delay-ms`: Maximum delay between retries in milliseconds (default: 10000)
    - `resume.matching.ai-retry-multiplier`: Multiplier for exponential backoff (default: 2.0)
 
-### Implementation Details
-
-The error handling and retry mechanism is implemented in the following components:
-
-1. **RetryConfig**: Configures the RetryTemplate with the appropriate retry policy and backoff strategy, specifically handling ResourceAccessException for network issues.
-
-2. **ResumeMatchingServiceImpl**: Uses the RetryTemplate to execute AI API calls with retry logic and provides fallback mechanisms.
-
-3. **ResumeVectorStoreConfig**: Implements retry logic for embedding operations with proper exception handling and fallback mechanisms.
-
-4. **application.properties**: Contains the configuration parameters for the retry mechanism.
-
 ## Getting Started
 
 ### Prerequisites
@@ -52,33 +74,102 @@ The error handling and retry mechanism is implemented in the following component
 - PostgreSQL 14 or higher with pgvector extension
 - Maven 3.8 or higher
 
-### Configuration
+### Running Locally
 
-Configure the application in `application.properties`:
-
-```properties
-# Database configuration
-spring.datasource.url=jdbc:postgresql://localhost:5432/postgres
-spring.datasource.username=your_username
-spring.datasource.password=your_password
-
-# Fuelix.ai configuration
-fuelix.api.base-url=https://api-beta.fuelix.ai
-fuelix.api.token=your_api_token
-fuelix.api.model=claude-3-7-sonnet
-fuelix.api.embedding-model=text-embedding-ada-002
-
-# Retry configuration
-resume.matching.ai-retry-count=3
-resume.matching.ai-retry-delay-ms=1000
-resume.matching.ai-retry-max-delay-ms=10000
-resume.matching.ai-retry-multiplier=2.0
-```
-
-### Running the Application
+1. Clone the repository
+2. Create a `.env` file in the project root with your environment variables (see `.env.example`)
+3. Run the application with the local profile:
 
 ```bash
-mvn spring-boot:run
+# Using environment variables
+export SPRING_PROFILES_ACTIVE=local
+./mvnw spring-boot:run
+
+# Or directly with Maven
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 The application will be available at http://localhost:8080.
+
+### Running in Cloud Environments
+
+For development and production environments, set the appropriate environment variables:
+
+```bash
+export SPRING_PROFILES_ACTIVE=dev  # or prod
+export DB_USERNAME=your_username
+export DB_PASSWORD=your_password
+export FUELIX_API_BASE_URL=https://api-beta.fuelix.ai
+export FUELIX_API_TOKEN=your_api_token
+./mvnw spring-boot:run
+```
+
+## Deployment
+
+### Docker
+
+Build a Docker image:
+
+```bash
+# Build the application with Vaadin production mode
+docker build -t spring-ai-resume-matcher .
+```
+
+Run the container with environment variables:
+
+```bash
+docker run -p 8080:8080 \
+  -e SPRING_PROFILES_ACTIVE=prod \
+  -e DB_USERNAME=your_username \
+  -e DB_PASSWORD=your_password \
+  -e FUELIX_API_BASE_URL=https://api-beta.fuelix.ai \
+  -e FUELIX_API_TOKEN=your_api_token \
+  spring-ai-resume-matcher
+```
+
+### Google Cloud Run Deployment
+
+Complete steps to deploy to Google Cloud Run:
+
+1. **Build and tag the Docker image**:
+   ```bash
+   # Build the Docker image
+   docker build -t spring-ai-resume-matcher .
+   
+   # Tag the image for Google Container Registry
+   docker tag spring-ai-resume-matcher gcr.io/YOUR_PROJECT_ID/spring-ai-resume-matcher:latest
+   ```
+
+2. **Configure Docker for Google Container Registry**:
+   ```bash
+   # Configure Docker to use gcloud as a credential helper
+   gcloud auth configure-docker
+   ```
+
+3. **Push the Docker image to Google Container Registry**:
+   ```bash
+   # Push the image to Google Container Registry
+   docker push gcr.io/YOUR_PROJECT_ID/spring-ai-resume-matcher:latest
+   ```
+
+4. **Deploy to Cloud Run with environment variables**:
+   ```bash
+   # Deploy to Cloud Run
+   gcloud run deploy spring-ai-resume-matcher \
+     --image gcr.io/YOUR_PROJECT_ID/spring-ai-resume-matcher:latest \
+     --platform managed \
+     --region asia-south1 \
+     --memory 1Gi \
+     --timeout 300 \
+     --allow-unauthenticated \
+     --set-env-vars="SPRING_PROFILES_ACTIVE=prod,DB_USERNAME=your_username,DB_PASSWORD=your_password,FUELIX_API_BASE_URL=https://api-beta.fuelix.ai,FUELIX_API_TOKEN=your_api_token"
+   ```
+
+5. **Update an existing deployment** (when needed):
+   ```bash
+   # Update the Cloud Run service (environment variables persist unless changed)
+   gcloud run deploy spring-ai-resume-matcher \
+     --image gcr.io/YOUR_PROJECT_ID/spring-ai-resume-matcher:latest \
+     --platform managed \
+     --region asia-south1
+   ```
