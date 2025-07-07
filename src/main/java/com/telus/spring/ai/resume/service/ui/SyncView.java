@@ -1,5 +1,7 @@
 package com.telus.spring.ai.resume.service.ui;
 
+import com.telus.spring.ai.resume.ui.MainLayout;
+
 import com.telus.spring.ai.resume.model.SyncResult;
 import com.telus.spring.ai.resume.scheduler.VectorStoreSyncScheduler;
 import com.vaadin.flow.component.UI;

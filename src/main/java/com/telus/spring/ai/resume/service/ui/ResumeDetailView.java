@@ -1,5 +1,7 @@
 package com.telus.spring.ai.resume.service.ui;
 
+import com.telus.spring.ai.resume.ui.MainLayout;
+
 import com.telus.spring.ai.resume.model.Resume;
 import com.telus.spring.ai.resume.model.ResumeAnalysis;
 import com.telus.spring.ai.resume.model.ResumeMatch;
