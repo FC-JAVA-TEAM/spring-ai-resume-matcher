@@ -9,8 +9,18 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 import com.telus.spring.ai.resume.model.Resume;
+import com.telus.spring.ai.resume.model.ResumeMatch;
 import com.telus.spring.ai.resume.model.chat.ChatRequest;
 import com.telus.spring.ai.resume.model.chat.ChatResponse;
 import com.telus.spring.ai.resume.repository.ResumeRepository;
@@ -64,6 +74,8 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
     private Select<String> actionSelect;
     private Button executeButton;
     private String userId;
+    private com.vaadin.flow.component.checkbox.Checkbox excludeLockedCheckbox;
+    private final RestTemplate restTemplate = new RestTemplate();
     
     // Available actions
     private static final String ACTION_ANALYZE = "Analyze Job Description";
@@ -139,6 +151,11 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
         resumeSelectionLayout.setPadding(false);
         resumeSelectionLayout.setSpacing(true);
         
+        // Add checkbox for excluding locked candidates
+        excludeLockedCheckbox = new com.vaadin.flow.component.checkbox.Checkbox("Exclude locked candidates");
+        excludeLockedCheckbox.setValue(true);
+        excludeLockedCheckbox.getStyle().set("margin-top", "10px");
+        
         // Header with count of selected resumes
         HorizontalLayout resumeHeaderLayout = new HorizontalLayout();
         resumeHeaderLayout.setWidthFull();
@@ -210,7 +227,7 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
         // Update button state when action changes
         actionSelect.addValueChangeListener(e -> updateExecuteButtonState());
         
-        actionSelectionLayout.add(actionSelect, executeButton);
+        actionSelectionLayout.add(actionSelect, excludeLockedCheckbox, executeButton);
         
         // Progress indicator
         progressBar = new ProgressBar();
@@ -349,10 +366,12 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
     
     /**
      * Match the job description with selected resumes.
+     * This method uses the new endpoint in CandidateStatusController that supports excluding locked candidates.
      */
     private void matchWithResumes() {
         String jobDescription = jobDescriptionArea.getValue().trim();
         Set<Resume> selectedResumes = resumeCheckboxGroup.getValue();
+        boolean excludeLocked = excludeLockedCheckbox.getValue();
         
         if (jobDescription.isEmpty()) {
             Notification notification = Notification.show("Please enter a job description");
@@ -381,20 +400,27 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
         getUI().ifPresent(ui -> {
             ui.access(() -> {
                 try {
-                    // Build a list of resume names for the prompt
-                    List<String> resumeNames = selectedResumes.stream()
-                        .map(Resume::getName)
-                        .collect(Collectors.toList());
+                    // Call the new endpoint in CandidateStatusController
+                    String url = "/api/candidate-status/match";
                     
-                    // Call the service
-                    ChatResponse response = chatService.chat(
-                        userId,
-                        "I have selected these resumes: " + String.join(", ", resumeNames) + 
-                        ". Please match them against this job description and tell me which ones are the best matches: " + 
-                        jobDescription,
-                        null, // We can't pass multiple resume IDs directly, so we'll include them in the message
-                        jobDescription
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+                    
+                    MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+                    map.add("jd", jobDescription);
+                    map.add("limit", "10");
+                    map.add("excludeLocked", String.valueOf(excludeLocked));
+                    
+                    HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
+                    
+                    ResponseEntity<List<ResumeMatch>> response = restTemplate.exchange(
+                        url,
+                        HttpMethod.POST,
+                        request,
+                        new ParameterizedTypeReference<List<ResumeMatch>>() {}
                     );
+                    
+                    List<ResumeMatch> matches = response.getBody();
                     
                     // Update UI with results
                     ui.access(() -> {
@@ -402,9 +428,40 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
                         executeButton.setEnabled(true);
                         updateExecuteButtonState();
                         
-                        // Format and display the message
-                        String formattedMessage = response.getMessage().replace("\n", "<br>");
-                        resultContent.getElement().setProperty("innerHTML", formattedMessage);
+                        // Format and display the results
+                        StringBuilder resultHtml = new StringBuilder();
+                        resultHtml.append("<h3>Match Results</h3>");
+                        
+                        if (matches == null || matches.isEmpty()) {
+                            resultHtml.append("<p>No matching resumes found.</p>");
+                        } else {
+                            resultHtml.append("<p>Found ").append(matches.size()).append(" matching resumes:</p>");
+                            resultHtml.append("<ul>");
+                            
+                            for (ResumeMatch match : matches) {
+                                Resume resume = match.getResume();
+                                resultHtml.append("<li>");
+                                resultHtml.append("<strong>").append(resume.getName()).append("</strong>");
+                                resultHtml.append(" (Score: ").append(match.getScore()).append("/100)");
+                                
+                                if (match.isLocked()) {
+                                    resultHtml.append(" <span style='color: red;'>[LOCKED]</span>");
+                                }
+                                
+                                resultHtml.append("<br>");
+                                resultHtml.append("<em>").append(resume.getEmail()).append("</em>");
+                                
+                                if (match.getExplanation() != null) {
+                                    resultHtml.append("<p>").append(match.getExplanation().replace("\n", "<br>")).append("</p>");
+                                }
+                                
+                                resultHtml.append("</li>");
+                            }
+                            
+                            resultHtml.append("</ul>");
+                        }
+                        
+                        resultContent.getElement().setProperty("innerHTML", resultHtml.toString());
                         resultContainer.setVisible(true);
                     });
                 } catch (Exception e) {

@@ -10,6 +10,7 @@ public class ResumeMatch {
     private Integer score;
     private String explanation;
     private ResumeAnalysis analysis;
+    private boolean locked;
     
     // Default constructor
     public ResumeMatch() {
@@ -20,6 +21,7 @@ public class ResumeMatch {
         this.resume = resume;
         this.score = score;
         this.explanation = explanation;
+        this.locked = false;
     }
     
     // Constructor with analysis
@@ -28,6 +30,24 @@ public class ResumeMatch {
         this.score = score;
         this.explanation = explanation;
         this.analysis = analysis;
+        this.locked = false;
+    }
+    
+    // Constructor with locked status
+    public ResumeMatch(Resume resume, Integer score, String explanation, boolean locked) {
+        this.resume = resume;
+        this.score = score;
+        this.explanation = explanation;
+        this.locked = locked;
+    }
+    
+    // Constructor with analysis and locked status
+    public ResumeMatch(Resume resume, Integer score, String explanation, ResumeAnalysis analysis, boolean locked) {
+        this.resume = resume;
+        this.score = score;
+        this.explanation = explanation;
+        this.analysis = analysis;
+        this.locked = locked;
     }
     
     // Getters and setters
@@ -63,6 +83,14 @@ public class ResumeMatch {
         this.analysis = analysis;
     }
     
+    public boolean isLocked() {
+        return locked;
+    }
+    
+    public void setLocked(boolean locked) {
+        this.locked = locked;
+    }
+    
     @Override
     public String toString() {
         return "ResumeMatch{" +
@@ -70,6 +98,7 @@ public class ResumeMatch {
                 ", score=" + score +
                 ", explanation='" + explanation + '\'' +
                 ", analysis=" + analysis +
+                ", locked=" + locked +
                 '}';
     }
 }
