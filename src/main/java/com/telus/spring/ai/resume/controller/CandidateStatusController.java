@@ -2,7 +2,6 @@ package com.telus.spring.ai.resume.controller;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,11 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.telus.spring.ai.resume.model.ApiResponse;
 import com.telus.spring.ai.resume.model.CandidateStatus;
-import com.telus.spring.ai.resume.model.Resume;
-import com.telus.spring.ai.resume.model.ResumeMatch;
-import com.telus.spring.ai.resume.model.Status;
 import com.telus.spring.ai.resume.model.dto.LockCandidateRequest;
-import com.telus.spring.ai.resume.model.dto.MatchRequest;
 import com.telus.spring.ai.resume.model.dto.UpdateStatusRequest;
 import com.telus.spring.ai.resume.service.CandidateStatusService;
 import com.telus.spring.ai.resume.service.ResumeMatchingService;
@@ -79,20 +74,20 @@ public class CandidateStatusController {
      * @param request The update request containing managerId
      * @return The updated CandidateStatus wrapped in an ApiResponse
      */
-    @PutMapping("/{statusId}/release")
-    public ResponseEntity<ApiResponse<CandidateStatus>> releaseCandidate(
-            @PathVariable String statusId,
-            @RequestBody UpdateStatusRequest request) {
-        
-        logger.info("Releasing candidate with statusId: {} by manager: {}", statusId, request.getManagerId());
-        
-        UUID statusUuid = UUID.fromString(statusId);
-        CandidateStatus status = candidateStatusService.releaseCandidate(statusUuid, request.getManagerId());
-        
-        logger.info("Successfully released candidate with statusId: {}", statusId);
-        return ResponseEntity.ok(ApiResponse.success(status));
-    }
-    
+//    @PutMapping("/{statusId}/release")
+//    public ResponseEntity<ApiResponse<CandidateStatus>> releaseCandidate(
+//            @PathVariable String statusId,
+//            @RequestBody UpdateStatusRequest request) {
+//        
+//        logger.info("Releasing candidate with statusId: {} by manager: {}", statusId, request.getManagerId());
+//        
+//        UUID statusUuid = UUID.fromString(statusId);
+//        CandidateStatus status = candidateStatusService.releaseCandidate(statusUuid, request.getManagerId());
+//        
+//        logger.info("Successfully released candidate with statusId: {}", statusId);
+//        return ResponseEntity.ok(ApiResponse.success(status));
+//    }
+//    
     /**
      * Update the status of a candidate.
      * 
@@ -100,43 +95,44 @@ public class CandidateStatusController {
      * @param request The update request containing managerId, newStatus, and notes
      * @return The updated CandidateStatus wrapped in an ApiResponse
      */
-    @PutMapping("/{statusId}/update")
-    public ResponseEntity<ApiResponse<CandidateStatus>> updateCandidateStatus(
-            @PathVariable String statusId,
-            @RequestBody UpdateStatusRequest request) {
-        
-        logger.info("Updating candidate status for statusId: {} to status: {} by manager: {}", 
-                statusId, request.getNewStatus(), request.getManagerId());
-        
-        UUID statusUuid = UUID.fromString(statusId);
-        CandidateStatus status = candidateStatusService.updateCandidateStatus(
-                statusUuid, 
-                request.getManagerId(), 
-                request.getNewStatus(), 
-                request.getNotes()
-        );
-        
-        logger.info("Successfully updated candidate status for statusId: {} to status: {}", 
-                statusId, request.getNewStatus());
-        return ResponseEntity.ok(ApiResponse.success(status));
-    }
+//    @PutMapping("/{statusId}/update")
+//    public ResponseEntity<ApiResponse<CandidateStatus>> updateCandidateStatus(
+//            @PathVariable String statusId,
+//            @RequestBody UpdateStatusRequest request) {
+//        
+//        logger.info("Updating candidate status for statusId: {} to status: {} by manager: {}", 
+//                statusId, request.getNewStatus(), request.getManagerId());
+//        
+//        UUID statusUuid = UUID.fromString(statusId);
+//        CandidateStatus status = candidateStatusService.updateCandidateStatus(
+//                statusUuid, 
+//                request.getManagerId(), 
+//                request.getNewStatus(), 
+//                request.getNotes()
+//        );
+//        
+//        logger.info("Successfully updated candidate status for statusId: {} to status: {}", 
+//                statusId, request.getNewStatus());
+//        return ResponseEntity.ok(ApiResponse.success(status));
+//    }
     
     /**
-     * Get all status records for a specific resume.
+     * get all status records for a specific resume.
+     *       
      * 
      * @param resumeId The ID of the resume
      * @return List of status records
      */
-    @GetMapping("/resume/{resumeId}")
-    public ResponseEntity<List<CandidateStatus>> getStatusByResumeId(@PathVariable String resumeId) {
-        logger.info("Getting status records for resumeId: {}", resumeId);
-        
-        UUID resumeUuid = UUID.fromString(resumeId);
-        List<CandidateStatus> statuses = candidateStatusService.getStatusByResumeId(resumeUuid);
-        
-        logger.info("Found {} status records for resumeId: {}", statuses.size(), resumeId);
-        return ResponseEntity.ok(statuses);
-    }
+//    @GetMapping("/resume/{resumeId}")
+//    public ResponseEntity<List<CandidateStatus>> getStatusByResumeId(@PathVariable String resumeId) {
+//        logger.info("Getting status records for resumeId: {}", resumeId);
+//        
+//        UUID resumeUuid = UUID.fromString(resumeId);
+//        List<CandidateStatus> statuses = candidateStatusService.getStatusByResumeId(resumeUuid);
+//        
+//        logger.info("Found {} status records for resumeId: {}", statuses.size(), resumeId);
+//        return ResponseEntity.ok(statuses);
+//    }
     
     /**
      * Check if a candidate is locked.
@@ -212,41 +208,41 @@ public class CandidateStatusController {
      * @param request The match request containing job description, limit, and excludeLocked flag
      * @return A list of resume matches with lock status
      */
-    @PostMapping("/match")
-    public ResponseEntity<List<ResumeMatch>> matchResumes(@RequestBody MatchRequest request) {
-        logger.info("Matching resumes to job description, limit: {}, excludeLocked: {}", 
-                request.getLimit(), request.isExcludeLocked());
-        
-        // Get matching resumes from the ResumeMatchingService
-        List<ResumeMatch> matches = resumeMatchingService.findMatchingResumes(request.getJobDescription(), request.getLimit());
-        
-        // Process matches to include lock status and filter out locked candidates if requested
-        List<ResumeMatch> processedMatches = matches.stream()
-                .map(match -> {
-                    // Get the resume ID
-                    Resume resume = match.getResume();
-                    UUID resumeId = resume.getId();
-                    
-                    // Check if the resume is locked
-                    boolean isLocked = candidateStatusService.isCandidateLocked(resumeId);
-                    
-                    // Create a new ResumeMatch with the lock status
-                    return new ResumeMatch(
-                            resume,
-                            match.getScore(),
-                            match.getExplanation(),
-                            match.getAnalysis(),
-                            isLocked
-                    );
-                })
-                .filter(match -> !request.isExcludeLocked() || !match.isLocked())
-                .collect(Collectors.toList());
-        
-        logger.info("Found {} matching resumes after filtering", processedMatches.size());
-        
-        return ResponseEntity.ok(processedMatches);
-    }
-    
+//    @PostMapping("/match")
+//    public ResponseEntity<List<ResumeMatch>> matchResumes(@RequestBody MatchRequest request) {
+//        logger.info("Matching resumes to job description, limit: {}, excludeLocked: {}", 
+//                request.getLimit(), request.isExcludeLocked());
+//        
+//        // Get matching resumes from the ResumeMatchingService
+//        List<ResumeMatch> matches = resumeMatchingService.findMatchingResumes(request.getJobDescription(), request.getLimit());
+//        
+//        // Process matches to include lock status and filter out locked candidates if requested
+//        List<ResumeMatch> processedMatches = matches.stream()
+//                .map(match -> {
+//                    // Get the resume ID
+//                    Resume resume = match.getResume();
+//                    UUID resumeId = resume.getId();
+//                    
+//                    // Check if the resume is locked
+//                    boolean isLocked = candidateStatusService.isCandidateLocked(resumeId);
+//                    
+//                    // Create a new ResumeMatch with the lock status
+//                    return new ResumeMatch(
+//                            resume,
+//                            match.getScore(),
+//                            match.getExplanation(),
+//                            match.getAnalysis(),
+//                            isLocked
+//                    );
+//                })
+//                .filter(match -> !request.isExcludeLocked() || !match.isLocked())
+//                .collect(Collectors.toList());
+//        
+//        logger.info("Found {} matching resumes after filtering", processedMatches.size());
+//        
+//        return ResponseEntity.ok(processedMatches);
+//    }
+//    
     /**
      * Match resumes to a job description with option to exclude locked candidates.
      * This endpoint is accessible at /api/resumes/match-new and returns results in ApiResponse format.
@@ -254,40 +250,40 @@ public class CandidateStatusController {
      * @param request The match request containing job description, limit, and excludeLocked flag
      * @return A list of resume matches with lock status wrapped in an ApiResponse
      */
-    @PostMapping(path = "/resumes/match-new")
-    public ResponseEntity<ApiResponse<List<ResumeMatch>>> matchResumesNew(@RequestBody MatchRequest request) {
-        logger.info("New endpoint: Matching resumes to job description, limit: {}, excludeLocked: {}", 
-                request.getLimit(), request.isExcludeLocked());
-        
-        // Get matching resumes from the ResumeMatchingService
-        List<ResumeMatch> matches = resumeMatchingService.findMatchingResumes(request.getJobDescription(), request.getLimit());
-        
-        // Process matches to include lock status and filter out locked candidates if requested
-        List<ResumeMatch> processedMatches = matches.stream()
-                .map(match -> {
-                    // Get the resume ID
-                    Resume resume = match.getResume();
-                    UUID resumeId = resume.getId();
-                    
-                    // Check if the resume is locked
-                    boolean isLocked = candidateStatusService.isCandidateLocked(resumeId);
-                    
-                    // Create a new ResumeMatch with the lock status
-                    return new ResumeMatch(
-                            resume,
-                            match.getScore(),
-                            match.getExplanation(),
-                            match.getAnalysis(),
-                            isLocked
-                    );
-                })
-                .filter(match -> !request.isExcludeLocked() || !match.isLocked())
-                .collect(Collectors.toList());
-        
-        logger.info("Found {} matching resumes after filtering", processedMatches.size());
-        
-        return ResponseEntity.ok(ApiResponse.success(processedMatches));
-    }
+//    @PostMapping(path = "/resumes/match-new")
+//    public ResponseEntity<ApiResponse<List<ResumeMatch>>> matchResumesNew(@RequestBody MatchRequest request) {
+//        logger.info("New endpoint: Matching resumes to job description, limit: {}, excludeLocked: {}", 
+//                request.getLimit(), request.isExcludeLocked());
+//        
+//        // Get matching resumes from the ResumeMatchingService
+//        List<ResumeMatch> matches = resumeMatchingService.findMatchingResumes(request.getJobDescription(), request.getLimit());
+//        
+//        // Process matches to include lock status and filter out locked candidates if requested
+//        List<ResumeMatch> processedMatches = matches.stream()
+//                .map(match -> {
+//                    // Get the resume ID
+//                    Resume resume = match.getResume();
+//                    UUID resumeId = resume.getId();
+//                    
+//                    // Check if the resume is locked
+//                    boolean isLocked = candidateStatusService.isCandidateLocked(resumeId);
+//                    
+//                    // Create a new ResumeMatch with the lock status
+//                    return new ResumeMatch(
+//                            resume,
+//                            match.getScore(),
+//                            match.getExplanation(),
+//                            match.getAnalysis(),
+//                            isLocked
+//                    );
+//                })
+//                .filter(match -> !request.isExcludeLocked() || !match.isLocked())
+//                .collect(Collectors.toList());
+//        
+//        logger.info("Found {} matching resumes after filtering", processedMatches.size());
+//        
+//        return ResponseEntity.ok(ApiResponse.success(processedMatches));
+//    }
     
     /**
      * Get all locked candidates.
@@ -298,9 +294,8 @@ public class CandidateStatusController {
     public ResponseEntity<List<CandidateStatus>> getAllLockedCandidates() {
         logger.info("Getting all locked candidates");
         
-        List<CandidateStatus> lockedCandidates = candidateStatusService.getStatusByManager("*").stream()
-                .filter(status -> status.getStatus() == Status.LOCKED)
-                .collect(Collectors.toList());
+       // candidateStatusService.
+        List<CandidateStatus> lockedCandidates = candidateStatusService.getLockedResumeIds();
         
         logger.info("Found {} locked candidates", lockedCandidates.size());
         return ResponseEntity.ok(lockedCandidates);
@@ -314,15 +309,15 @@ public class CandidateStatusController {
      * @param request The update request containing managerId, newStatus, and notes
      * @return The updated CandidateStatus
      */
-    @PutMapping("/resume/{resumeId}/update")
+    @PutMapping("/resume/update")
     public ResponseEntity<CandidateStatus> updateCandidateStatusByResumeId(
-            @PathVariable String resumeId,
+          //  @PathVariable String resumeId,
             @RequestBody UpdateStatusRequest request) {
         
-        logger.info("Updating candidate status for resumeId: {} to status: {} by manager: {}", 
-                resumeId, request.getNewStatus(), request.getManagerId());
-        
-        UUID resumeUuid = UUID.fromString(resumeId);
+//        logger.info("Updating candidate status for resumeId: {} to status: {} by manager: {}", 
+//                resumeId, request.getNewStatus(), request.getManagerId());
+//        
+        UUID resumeUuid = UUID.fromString(request.getResumeId());
         CandidateStatus status = candidateStatusService.updateCandidateStatusByResumeId(
                 resumeUuid, 
                 request.getManagerId(), 
@@ -330,8 +325,8 @@ public class CandidateStatusController {
                 request.getNotes()
         );
         
-        logger.info("Successfully updated candidate status for resumeId: {} to status: {}", 
-                resumeId, request.getNewStatus());
+//        logger.info("Successfully updated candidate status for resumeId: {} to status: {}", 
+//                resumeId, request.getNewStatus());
         return ResponseEntity.ok(status);
     }
 }

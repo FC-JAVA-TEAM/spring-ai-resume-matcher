@@ -100,6 +100,7 @@ public class ResumeController {
 			ResumeResponse response = new ResumeResponse(match.getResume());
 			response.setMatchScore(match.getScore());
 			response.setMatchExplanation(match.getExplanation());
+			response.setLocked(match.isLocked());
 			return response;
 		}).collect(Collectors.toList());
 

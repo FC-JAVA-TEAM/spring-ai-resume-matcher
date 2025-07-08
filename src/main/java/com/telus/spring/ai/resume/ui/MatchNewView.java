@@ -1,6 +1,5 @@
 package com.telus.spring.ai.resume.ui;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -21,14 +20,12 @@ import org.springframework.web.client.RestTemplate;
 
 import com.telus.spring.ai.resume.model.Resume;
 import com.telus.spring.ai.resume.model.ResumeMatch;
-import com.telus.spring.ai.resume.model.chat.ChatRequest;
 import com.telus.spring.ai.resume.model.chat.ChatResponse;
 import com.telus.spring.ai.resume.repository.ResumeRepository;
 import com.telus.spring.ai.resume.service.ResumeAwareChatService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.CheckboxGroup;
-import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
@@ -42,8 +39,8 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.progressbar.ProgressBar;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.BeforeEvent;
 import com.vaadin.flow.router.HasUrlParameter;

@@ -173,6 +173,21 @@ public class MatchView extends VerticalLayout {
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         
+        
+        
+        Icon lockIcon;
+        if (match.isLocked()) {
+            lockIcon = new Icon(VaadinIcon.LOCK);
+            lockIcon.setColor("var(--lumo-error-color)");
+            lockIcon.getElement().setAttribute("title", "This resume is locked");
+        } else {
+            lockIcon = new Icon(VaadinIcon.UNLOCK);
+            lockIcon.setColor("var(--lumo-success-color)");
+            lockIcon.getElement().setAttribute("title", "This resume is available");
+        }
+        lockIcon.setSize("4em");
+        header.add(lockIcon);
+        
         // Name and contact info with icon
         VerticalLayout contactInfo = new VerticalLayout();
         contactInfo.setSpacing(false);

@@ -1,34 +1,5 @@
 package com.telus.spring.ai.resume.service.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.model.Generation;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.SystemPromptTemplate;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.converter.BeanOutputConverter;
-import org.springframework.ai.document.Document;
-import com.telus.spring.ai.resume.converter.ResumeAnalysisConverter;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.retry.support.RetryTemplate;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-
-import com.telus.spring.ai.resume.model.Resume;
-import com.telus.spring.ai.resume.model.ResumeAnalysis;
-import com.telus.spring.ai.resume.model.ResumeMatch;
-import com.telus.spring.ai.resume.repository.ResumeRepository;
-import com.telus.spring.ai.resume.service.ResumeMatchingService;
-
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,6 +9,34 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.prompt.SystemPromptTemplate;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.retry.support.RetryTemplate;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+import com.telus.spring.ai.resume.converter.ResumeAnalysisConverter;
+import com.telus.spring.ai.resume.model.CandidateStatus;
+import com.telus.spring.ai.resume.model.Resume;
+import com.telus.spring.ai.resume.model.ResumeAnalysis;
+import com.telus.spring.ai.resume.model.ResumeMatch;
+import com.telus.spring.ai.resume.repository.ResumeRepository;
+import com.telus.spring.ai.resume.service.CandidateStatusService;
+import com.telus.spring.ai.resume.service.ResumeMatchingService;
 
 /**
  * Implementation of ResumeMatchingService that uses vector similarity search
@@ -49,12 +48,13 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
     
     private static final Logger logger = LoggerFactory.getLogger(ResumeMatchingServiceImpl.class);
     
-    private  VectorStore vectorStore;
-    private final ChatModel chatModel;
-    private final ResumeRepository resumeRepository;
-    private final String resumeMatchPrompt;
-    private final RetryTemplate aiRetryTemplate;
-    private final ResumeAnalysisConverter resumeAnalysisConverter;
+private  VectorStore vectorStore;
+private final ChatModel chatModel;
+private final ResumeRepository resumeRepository;
+private final String resumeMatchPrompt;
+private final RetryTemplate aiRetryTemplate;
+private final ResumeAnalysisConverter resumeAnalysisConverter;
+private final CandidateStatusService candidateStatusService;
     
     @Value("${resume.matching.ai-timeout-seconds:30}")
     private int aiOperationTimeoutSeconds;
@@ -73,13 +73,15 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
             ResumeRepository resumeRepository,
             @Qualifier("resumeMatchPrompt") String resumeMatchPrompt,
             RetryTemplate aiRetryTemplate,
-            ResumeAnalysisConverter resumeAnalysisConverter) {
+            ResumeAnalysisConverter resumeAnalysisConverter,
+            CandidateStatusService candidateStatusService) {
         this.vectorStore = vectorStore;
         this.chatModel = chatModel;
         this.resumeRepository = resumeRepository;
         this.resumeMatchPrompt = resumeMatchPrompt;
         this.aiRetryTemplate = aiRetryTemplate;
         this.resumeAnalysisConverter = resumeAnalysisConverter;
+		this.candidateStatusService = candidateStatusService;
     }
     
     @Override
@@ -135,6 +137,12 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
             String resumeIdStr = metadata.get("resumeId").toString();
             UUID resumeId = UUID.fromString(resumeIdStr);
             
+            // Check if this resume is locked
+            List<CandidateStatus> lockedStatuses = candidateStatusService.getLockedResumeIds();
+            final boolean isLocked = lockedStatuses != null && !lockedStatuses.isEmpty() && 
+                lockedStatuses.stream()
+                    .anyMatch(status -> status.getResumeId().equals(resumeId));
+            
             // Create Resume object directly from metadata if possible
             Resume resume;
             
@@ -180,8 +188,8 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                         
                         // If we have a successful structured analysis, don't include the raw explanation
                         // to reduce payload size
-                        ResumeMatch match = new ResumeMatch(resume, score, null, analysis);
-                        logger.info("Processed match for resume: {}, score: {}", resumeId, score);
+                        ResumeMatch match = new ResumeMatch(resume, score, null, analysis, isLocked);
+                        logger.info("Processed match for resume: {}, score: {}, locked: {}", resumeId, score, isLocked);
                         return match;
                     } catch (Exception e) {
                         logger.warn("Failed to convert explanation to structured analysis: {}", e.getMessage());
@@ -189,15 +197,15 @@ public class ResumeMatchingServiceImpl implements ResumeMatchingService {
                         score = extractScoreFromExplanation(explanation);
                         
                         // In case of conversion failure, include the raw explanation for fallback
-                        ResumeMatch match = new ResumeMatch(resume, score, explanation, null);
-                        logger.info("Processed match for resume: {}, score: {}", resumeId, score);
+                        ResumeMatch match = new ResumeMatch(resume, score, explanation, null, isLocked);
+                        logger.info("Processed match for resume: {}, score: {}, locked: {}", resumeId, score, isLocked);
                         return match;
                     }
                 })
                 .exceptionally(ex -> {
                     logger.error("Error generating explanation for resume: {}", resumeId, ex);
                     // Return a match with default values in case of error
-                    return new ResumeMatch(resume, 0, "Unable to generate explanation due to an error: " + ex.getMessage());
+                    return new ResumeMatch(resume, 0, "Unable to generate explanation due to an error: " + ex.getMessage(), isLocked);
                 });
         } catch (Exception e) {
             logger.error("Error processing document: {}", document.getId(), e);

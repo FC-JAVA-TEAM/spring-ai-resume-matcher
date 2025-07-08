@@ -23,6 +23,8 @@ public interface CandidateStatusService {
      */
     List<UUID> getLockedResumeIds(List<UUID> resumeIds);
     
+    List<CandidateStatus>  getLockedResumeIds();
+    
     /**
      * Lock a candidate for a specific position by a manager.
      * 

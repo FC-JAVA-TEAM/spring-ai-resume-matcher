@@ -140,7 +140,16 @@ public class CandidateStatusServiceImpl implements CandidateStatusService {
         
         if (statuses.isEmpty()) {
             logger.warn("No status records found for resumeId: {}", resumeId);
-            throw new ResourceNotFoundException("CandidateStatus", "resumeId", resumeId);
+            
+          //  Object position;
+			//String actualPosition = (position != null) ? position : "Unspecified Position";
+            
+            CandidateStatus status = new CandidateStatus(resumeId, managerId, "Unspecified Position", Status.LOCKED);
+            status.setNotes(notes);
+            status.setCreatedAt(LocalDateTime.now());
+            
+            return candidateStatusRepository.save(status);
+           // throw new ResourceNotFoundException("CandidateStatus", "resumeId", resumeId);
         }
         
         // Find the most recent status (the one with the latest createdAt timestamp)
@@ -181,4 +190,13 @@ public class CandidateStatusServiceImpl implements CandidateStatusService {
                 .map(CandidateStatus::getResumeId)
                 .collect(java.util.stream.Collectors.toList());
     }
+
+	@Override
+	public List<CandidateStatus> getLockedResumeIds() {
+		 List<CandidateStatus> dd = candidateStatusRepository.findByStatus(Status.LOCKED);
+	               // .stream()
+	               // .map(CandidateStatus::getResumeId)
+	               // .collect(java.util.stream.Collectors.toList());
+		 return dd;
+	}
 }

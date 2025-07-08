@@ -66,4 +66,6 @@ public interface CandidateStatusRepository extends JpaRepository<CandidateStatus
      * @return List of status records
      */
     List<CandidateStatus> findByResumeIdInAndStatus(List<UUID> resumeIds, Status status);
+    
+    List<CandidateStatus> findByStatus(Status status);
 }

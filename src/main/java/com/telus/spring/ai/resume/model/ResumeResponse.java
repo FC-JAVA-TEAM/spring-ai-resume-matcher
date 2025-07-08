@@ -18,12 +18,21 @@ public class ResumeResponse {
     private String originalFileName;
     private Integer matchScore;
     private String matchExplanation;
+    private boolean locked;
     
     // Default constructor
     public ResumeResponse() {
     }
     
-    // Constructor from Resume entity
+    public boolean isLocked() {
+		return locked;
+	}
+
+	public void setLocked(boolean locked) {
+		this.locked = locked;
+	}
+
+	// Constructor from Resume entity
     public ResumeResponse(Resume resume) {
         this.id = resume.getId();
         this.name = resume.getName();
@@ -108,17 +117,9 @@ public class ResumeResponse {
     }
     
     @Override
-    public String toString() {
-        return "ResumeResponse{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", email='" + email + '\'' +
-                ", phoneNumber='" + phoneNumber + '\'' +
-                ", uploadedAt=" + uploadedAt +
-                ", fileType='" + fileType + '\'' +
-                ", originalFileName='" + originalFileName + '\'' +
-                ", matchScore=" + matchScore +
-                ", matchExplanation='" + (matchExplanation != null ? "present" : "null") + '\'' +
-                '}';
-    }
+	public String toString() {
+		return "ResumeResponse [id=" + id + ", name=" + name + ", email=" + email + ", phoneNumber=" + phoneNumber
+				+ ", uploadedAt=" + uploadedAt + ", fileType=" + fileType + ", originalFileName=" + originalFileName
+				+ ", matchScore=" + matchScore + ", matchExplanation=" + matchExplanation + ", locked=" + locked + "]";
+	}
 }
