@@ -1,4 +1,4 @@
-package com.telus.spring.ai.resume.model;
+package com.telus.spring.ai.resume.exception;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

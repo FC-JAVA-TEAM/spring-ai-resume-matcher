@@ -6,12 +6,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.telus.spring.ai.resume.model.CandidateEvaluationModel;
 import com.telus.spring.ai.resume.model.ResumeAnalysis;
 import com.telus.spring.ai.resume.model.ResumeMatch;
 import com.telus.spring.ai.resume.service.ResumeMatchingService;
 import com.telus.spring.ai.resume.service.ResumeStorageService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
@@ -172,6 +175,13 @@ public class MatchView extends VerticalLayout {
         HorizontalLayout header = new HorizontalLayout();
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        
+        // Add a checkbox for locking/unlocking the resume
+        Checkbox lockCheckbox = new Checkbox("Lock");
+        lockCheckbox.addValueChangeListener(event -> {
+            boolean isChecked = event.getValue();
+            handleLockStatusChange(match, isChecked);
+        });
         
         // Name and contact info with icon
         VerticalLayout contactInfo = new VerticalLayout();
@@ -352,7 +362,7 @@ public class MatchView extends VerticalLayout {
         actionsSection.add(matchButton, viewButton);
         
         // Add all sections to the card
-        card.add(header, analysisSection, actionsSection);
+        card.add(lockCheckbox, header, analysisSection, actionsSection);
         
         return card;
     }
@@ -1211,5 +1221,154 @@ public class MatchView extends VerticalLayout {
         
         // Show the sorted results
         showResults(currentMatches);
+    }
+    
+    /**
+     * Handles the lock status change for a resume match.
+     */
+    private void handleLockStatusChange(ResumeMatch match, boolean locked) {
+        // Convert ResumeMatch to CandidateEvaluationDTO
+        CandidateEvaluationModel dto = convertToCandidateEvaluationDTO(match);
+        dto.setLocked(locked);
+        
+        // For now, just display the DTO
+        displayCandidateEvaluation(dto);
+        
+        // In the future, this would call a service to persist the lock status
+    }
+    
+    /**
+     * Converts a ResumeMatch to a CandidateEvaluationDTO.
+     */
+    private CandidateEvaluationModel convertToCandidateEvaluationDTO(ResumeMatch match) {
+        CandidateEvaluationModel dto = new CandidateEvaluationModel();
+        
+        // Set basic resume information
+        dto.setResumeId(match.getResume().getId());
+        dto.setName(match.getResume().getName());
+        dto.setEmail(match.getResume().getEmail());
+        dto.setPhoneNumber(match.getResume().getPhoneNumber());
+        
+        // Set score
+        dto.setScore(match.getScore() != null ? match.getScore() : 0);
+        
+        // Extract data from ResumeAnalysis if available
+        ResumeAnalysis analysis = match.getAnalysis();
+        if (analysis != null) {
+            // Executive summary
+            dto.setExecutiveSummary(analysis.getExecutiveSummary());
+            
+            // Key strengths
+            List<String> keyStrengths = new ArrayList<>();
+            if (analysis.getKeyStrengths() != null) {
+                for (ResumeAnalysis.KeyStrength strength : analysis.getKeyStrengths()) {
+                    keyStrengths.add(strength.getStrength());
+                }
+            }
+            dto.setKeyStrengths(keyStrengths);
+            
+            // Improvement areas
+            List<String> improvementAreas = new ArrayList<>();
+            if (analysis.getImprovementAreas() != null) {
+                for (ResumeAnalysis.ImprovementArea area : analysis.getImprovementAreas()) {
+                    improvementAreas.add(area.getGap());
+                }
+            }
+            dto.setImprovementAreas(improvementAreas);
+            
+            // Category scores
+            if (analysis.getCategoryScores() != null) {
+            //    dto.setTechnicalSkills(analysis.ge != null ? 
+               //     analysis.getCategoryScores().getTechnicalSkills() : 0);
+                dto.setExperience(analysis.getCategoryScores().getExperience() != null ? 
+                    analysis.getCategoryScores().getExperience() : 0);
+                dto.setEducation(analysis.getCategoryScores().getEducation() != null ? 
+                    analysis.getCategoryScores().getEducation() : 0);
+                dto.setSoftSkills(analysis.getCategoryScores().getSoftSkills() != null ? 
+                    analysis.getCategoryScores().getSoftSkills() : 0);
+                dto.setAchievements(analysis.getCategoryScores().getAchievements() != null ? 
+                    analysis.getCategoryScores().getAchievements() : 0);
+            }
+            
+            // Recommendation
+            if (analysis.getRecommendation() != null) {
+                dto.setRecommendationType(analysis.getRecommendation().getType());
+                dto.setRecommendationReason(analysis.getRecommendation().getReason());
+            }
+        } else if (match.getExplanation() != null) {
+            // If no structured analysis is available, use the explanation text
+            dto.setExecutiveSummary(extractAnalysisSummary(match.getExplanation()));
+        }
+        
+        // Default locked status
+        dto.setLocked(false);
+        
+        return dto;
+    }
+    
+    /**
+     * Displays the CandidateEvaluationDTO in a dialog.
+     */
+    private void displayCandidateEvaluation(CandidateEvaluationModel dto) {
+        // Create a dialog to display the DTO
+        Dialog dialog = new Dialog();
+        dialog.setWidth("800px");
+        
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(true);
+        content.setSpacing(true);
+        
+        H3 title = new H3("Candidate Evaluation");
+        
+        // Create a formatted representation of the DTO
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div style='white-space: pre-wrap;'>");
+        sb.append("<strong>Name:</strong> ").append(dto.getName()).append("<br>");
+        sb.append("<strong>Email:</strong> ").append(dto.getEmail()).append("<br>");
+        sb.append("<strong>Phone:</strong> ").append(dto.getPhoneNumber()).append("<br>");
+        sb.append("<strong>Resume ID:</strong> ").append(dto.getResumeId()).append("<br>");
+        sb.append("<strong>Score:</strong> ").append(dto.getScore()).append("<br>");
+        sb.append("<strong>Executive Summary:</strong> ").append(dto.getExecutiveSummary()).append("<br>");
+        
+        sb.append("<strong>Key Strengths:</strong><br>");
+        if (dto.getKeyStrengths() == null || dto.getKeyStrengths().isEmpty()) {
+            sb.append("- None<br>");
+        } else {
+            for (String strength : dto.getKeyStrengths()) {
+                sb.append("- ").append(strength).append("<br>");
+            }
+        }
+        
+        sb.append("<strong>Improvement Areas:</strong><br>");
+        if (dto.getImprovementAreas() == null || dto.getImprovementAreas().isEmpty()) {
+            sb.append("- None<br>");
+        } else {
+            for (String area : dto.getImprovementAreas()) {
+                sb.append("- ").append(area).append("<br>");
+            }
+        }
+        
+        sb.append("<strong>Category Scores:</strong><br>");
+        sb.append("- Technical Skills: ").append(dto.getTechnicalSkills()).append("<br>");
+        sb.append("- Experience: ").append(dto.getExperience()).append("<br>");
+        sb.append("- Education: ").append(dto.getEducation()).append("<br>");
+        sb.append("- Soft Skills: ").append(dto.getSoftSkills()).append("<br>");
+        sb.append("- Achievements: ").append(dto.getAchievements()).append("<br>");
+        
+        sb.append("<strong>Recommendation:</strong> ").append(dto.getRecommendationType()).append("<br>");
+        sb.append("<strong>Reason:</strong> ").append(dto.getRecommendationReason()).append("<br>");
+        sb.append("<strong>Locked:</strong> ").append(dto.isLocked() ? "Yes" : "No").append("<br>");
+        sb.append("</div>");
+        
+        Div formattedContent = new Div();
+        formattedContent.getElement().setProperty("innerHTML", sb.toString());
+        
+        Button closeButton = new Button("Close", e -> dialog.close());
+        closeButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        
+        content.add(title, formattedContent, closeButton);
+        dialog.add(content);
+        
+        dialog.open();
     }
 }

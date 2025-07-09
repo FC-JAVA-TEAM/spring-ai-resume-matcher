@@ -36,3 +36,33 @@ CREATE TABLE IF NOT EXISTS resume_vector_store (
 );
 
 -- Index creation is now handled by the application code to avoid issues with existing indexes
+
+CREATE TABLE IF NOT EXISTS candidate_evaluations (
+    id UUID PRIMARY KEY,
+    resume_Id UUID ,
+    name VARCHAR(255),
+    email VARCHAR(255),
+    phone_number VARCHAR(50),
+    score INTEGER,
+    executive_summary TEXT,
+    technical_skills INTEGER,
+    experience INTEGER,
+    education INTEGER,
+    soft_skills INTEGER,
+    achievements INTEGER,
+    recommendation_type VARCHAR(100),
+    recommendation_reason TEXT,
+    locked BOOLEAN DEFAULT FALSE,
+    manager_id VARCHAR(100),
+    locked_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS candidate_evaluation_model_key_strengths (
+    candidate_evaluation_model_id UUID REFERENCES candidate_evaluations(id),
+    key_strengths VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS candidate_evaluation_model_improvement_areas (
+    candidate_evaluation_model_id UUID REFERENCES candidate_evaluations(id),
+    improvement_areas VARCHAR(255)
+);

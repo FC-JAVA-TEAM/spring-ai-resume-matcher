@@ -12,8 +12,6 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
-import com.telus.spring.ai.resume.model.ErrorResponse;
-
 /**
  * Global exception handler for the application.
  * This class centralizes exception handling across all controllers.
@@ -109,6 +107,30 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT.value(),
                 "Conflict",
                 ex.getMessage(),
+                getPath(request)
+        );
+        
+        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    }
+    
+    /**
+     * Handle CandidateAlreadyLockedException.
+     * 
+     * @param ex The exception
+     * @param request The web request
+     * @return ResponseEntity with error details
+     */
+    @ExceptionHandler(CandidateAlreadyLockedException.class)
+    public ResponseEntity<ErrorResponse> handleCandidateAlreadyLockedException(
+            CandidateAlreadyLockedException ex, WebRequest request) {
+        
+        logger.warn("Candidate Already Locked: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                "Conflict",
+                String.format("Resume with ID %s is already locked by manager: %s. You cannot modify it.", 
+                        ex.getResumeId(), ex.getLockingManagerId()),
                 getPath(request)
         );
         

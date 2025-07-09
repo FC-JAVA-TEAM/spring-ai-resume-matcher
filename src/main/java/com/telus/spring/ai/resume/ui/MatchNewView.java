@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.telus.spring.ai.resume.model.CandidateEvaluationModel;
 import com.telus.spring.ai.resume.model.Resume;
 import com.telus.spring.ai.resume.model.chat.ChatRequest;
 import com.telus.spring.ai.resume.model.chat.ChatResponse;
@@ -72,6 +73,7 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
     private static final String ACTION_EXTRACT_SKILLS = "Extract Skills from Resumes";
     private static final String ACTION_GET_INFO = "Get Detailed Info for Resumes";
     private static final String ACTION_REFINE = "Refine Job Description";
+    private static final String ACTION_LOCK = "Lock Selected Resumes";
     
     @Autowired
     public MatchNewView(ResumeAwareChatService chatService, ResumeRepository resumeRepository) {
@@ -194,7 +196,8 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
             ACTION_COMPARE,
             ACTION_EXTRACT_SKILLS,
             ACTION_GET_INFO,
-            ACTION_REFINE
+            ACTION_REFINE,
+            ACTION_LOCK
         );
         actionSelect.setValue(ACTION_ANALYZE);
         
@@ -285,6 +288,9 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
                 break;
             case ACTION_REFINE:
                 refineJobDescription();
+                break;
+            case ACTION_LOCK:
+                lockSelectedResumes();
                 break;
             default:
                 Notification.show("Unknown action: " + selectedAction);
@@ -810,5 +816,119 @@ public class MatchNewView extends VerticalLayout implements HasUrlParameter<Stri
                 jobDescriptionArea.setValue(jobDescription);
             }
         }
+    }
+    
+    /**
+     * Lock selected resumes.
+     */
+    private void lockSelectedResumes() {
+        Set<Resume> selectedResumes = resumeCheckboxGroup.getValue();
+        
+        if (selectedResumes.isEmpty()) {
+            Notification notification = Notification.show("Please select at least one resume");
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+        
+        // Convert selected resumes to CandidateEvaluationDTO objects
+        List<CandidateEvaluationModel> candidateEvaluations = new ArrayList<>();
+        
+        for (Resume resume : selectedResumes) {
+            CandidateEvaluationModel dto = convertToCandidateEvaluationDTO(resume);
+            candidateEvaluations.add(dto);
+        }
+        
+        // For now, just print the DTOs
+        displayCandidateEvaluations(candidateEvaluations);
+    }
+    
+    /**
+     * Convert a Resume object to a CandidateEvaluationDTO object.
+     * 
+     * @param resume The resume to convert
+     * @return The converted DTO
+     */
+    private CandidateEvaluationModel convertToCandidateEvaluationDTO(Resume resume) {
+        CandidateEvaluationModel dto = new CandidateEvaluationModel();
+        
+        // Set basic resume information
+        dto.setResumeId(resume.getId());
+        dto.setName(resume.getName());
+        dto.setEmail(resume.getEmail());
+        dto.setPhoneNumber(resume.getPhoneNumber());
+        
+        // Set default values for other fields
+        dto.setScore(0);
+        dto.setExecutiveSummary("No summary available");
+        dto.setKeyStrengths(new ArrayList<>());
+        dto.setImprovementAreas(new ArrayList<>());
+       // dto.setTechnicalSkills(0);
+        dto.setExperience(0);
+        dto.setEducation(0);
+        dto.setSoftSkills(0);
+        dto.setAchievements(0);
+        dto.setRecommendationType("Not Evaluated");
+        dto.setRecommendationReason("Not evaluated yet");
+        dto.setLocked(false);
+        
+        return dto;
+    }
+    
+    /**
+     * Display candidate evaluations.
+     * 
+     * @param candidateEvaluations The candidate evaluations to display
+     */
+    private void displayCandidateEvaluations(List<CandidateEvaluationModel> candidateEvaluations) {
+        // Create a formatted string representation of the DTOs
+        StringBuilder sb = new StringBuilder();
+        sb.append("<h3>Selected Candidates</h3>");
+        sb.append("<div style='white-space: pre-wrap;'>");
+        
+        for (CandidateEvaluationModel dto : candidateEvaluations) {
+            sb.append("<div style='margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;'>");
+            sb.append("<strong>Name:</strong> ").append(dto.getName()).append("<br>");
+            sb.append("<strong>Email:</strong> ").append(dto.getEmail()).append("<br>");
+            sb.append("<strong>Phone:</strong> ").append(dto.getPhoneNumber()).append("<br>");
+            sb.append("<strong>Resume ID:</strong> ").append(dto.getResumeId()).append("<br>");
+            sb.append("<strong>Score:</strong> ").append(dto.getScore()).append("<br>");
+            sb.append("<strong>Executive Summary:</strong> ").append(dto.getExecutiveSummary()).append("<br>");
+            
+            sb.append("<strong>Key Strengths:</strong><br>");
+            if (dto.getKeyStrengths().isEmpty()) {
+                sb.append("- None<br>");
+            } else {
+                for (String strength : dto.getKeyStrengths()) {
+                    sb.append("- ").append(strength).append("<br>");
+                }
+            }
+            
+            sb.append("<strong>Improvement Areas:</strong><br>");
+            if (dto.getImprovementAreas().isEmpty()) {
+                sb.append("- None<br>");
+            } else {
+                for (String area : dto.getImprovementAreas()) {
+                    sb.append("- ").append(area).append("<br>");
+                }
+            }
+            
+            sb.append("<strong>Category Scores:</strong><br>");
+            sb.append("- Technical Skills: ").append(dto.getTechnicalSkills()).append("<br>");
+            sb.append("- Experience: ").append(dto.getExperience()).append("<br>");
+            sb.append("- Education: ").append(dto.getEducation()).append("<br>");
+            sb.append("- Soft Skills: ").append(dto.getSoftSkills()).append("<br>");
+            sb.append("- Achievements: ").append(dto.getAchievements()).append("<br>");
+            
+            sb.append("<strong>Recommendation:</strong> ").append(dto.getRecommendationType()).append("<br>");
+            sb.append("<strong>Reason:</strong> ").append(dto.getRecommendationReason()).append("<br>");
+            sb.append("<strong>Locked:</strong> ").append(dto.isLocked()).append("<br>");
+            sb.append("</div>");
+        }
+        
+        sb.append("</div>");
+        
+        // Display the formatted string in the result content
+        resultContent.getElement().setProperty("innerHTML", sb.toString());
+        resultContainer.setVisible(true);
     }
 }
