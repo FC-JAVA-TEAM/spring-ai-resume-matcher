@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS resumes (
     updated_at TIMESTAMP NOT NULL,
     file_type VARCHAR(10) NOT NULL,
     original_file_name VARCHAR(255) NOT NULL,
+    lock BOOLEAN,
     CONSTRAINT unique_resume UNIQUE (name, email, phone_number)
 );
 

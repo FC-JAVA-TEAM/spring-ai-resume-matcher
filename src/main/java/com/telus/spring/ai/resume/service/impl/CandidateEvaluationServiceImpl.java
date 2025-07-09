@@ -208,6 +208,12 @@ public CandidateEvaluationServiceImpl(CandidateEvaluationRepository evaluationRe
         return evaluationRepository.findByLocked(locked);
     }
     
+    @Transactional(readOnly = true)
+    public List<CandidateEvaluationModel> findAllByLocked() {
+    	
+        return evaluationRepository.findByLocked(Boolean.TRUE);
+    }
+    
     @Override
     @Transactional
     public CandidateEvaluationModel lockEvaluation(UUID resumeId, String managerId) {

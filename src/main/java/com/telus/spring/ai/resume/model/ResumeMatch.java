@@ -10,8 +10,17 @@ public class ResumeMatch {
     private Integer score;
     private String explanation;
     private ResumeAnalysis analysis;
+    private boolean locked;
     
-    // Default constructor
+    public boolean isLocked() {
+		return locked;
+	}
+
+	public void setLocked(boolean locked) {
+		this.locked = locked;
+	}
+
+	// Default constructor
     public ResumeMatch() {
     }
     
@@ -20,6 +29,7 @@ public class ResumeMatch {
         this.resume = resume;
         this.score = score;
         this.explanation = explanation;
+       // this.locked=locked;
     }
     
     // Constructor with analysis
@@ -70,6 +80,7 @@ public class ResumeMatch {
                 ", score=" + score +
                 ", explanation='" + explanation + '\'' +
                 ", analysis=" + analysis +
+                 ", locked=" + locked +
                 '}';
     }
 }

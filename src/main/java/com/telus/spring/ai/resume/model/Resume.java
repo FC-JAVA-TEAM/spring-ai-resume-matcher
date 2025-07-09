@@ -44,6 +44,9 @@ public class Resume {
     @Column(name = "original_file_name", nullable = false)
     private String originalFileName;
     
+    @Column(name = "lock", nullable = true)
+    private boolean lock;
+    
     // Default constructor
     public Resume() {
     }
