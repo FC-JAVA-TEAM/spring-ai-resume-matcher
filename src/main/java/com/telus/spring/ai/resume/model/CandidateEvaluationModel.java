@@ -9,6 +9,8 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -48,6 +50,8 @@ public class CandidateEvaluationModel {
         if (!Objects.equals(achievements, that.achievements)) return false;
         if (!Objects.equals(recommendationType, that.recommendationType)) return false;
         if (!Objects.equals(recommendationReason, that.recommendationReason)) return false;
+        if (status != that.status) return false;
+        if (!Objects.equals(customStatus, that.customStatus)) return false;
         if (!Objects.equals(managerId, that.managerId)) return false;
         return Objects.equals(lockedAt, that.lockedAt);
     }
@@ -69,6 +73,8 @@ public class CandidateEvaluationModel {
         result = 31 * result + (achievements != null ? achievements.hashCode() : 0);
         result = 31 * result + (recommendationType != null ? recommendationType.hashCode() : 0);
         result = 31 * result + (recommendationReason != null ? recommendationReason.hashCode() : 0);
+        result = 31 * result + (status != null ? status.hashCode() : 0);
+        result = 31 * result + (customStatus != null ? customStatus.hashCode() : 0);
         result = 31 * result + (locked ? 1 : 0);
         result = 31 * result + (managerId != null ? managerId.hashCode() : 0);
         result = 31 * result + (lockedAt != null ? lockedAt.hashCode() : 0);
@@ -105,6 +111,16 @@ public class CandidateEvaluationModel {
     private  Integer achievements;
     private String recommendationType;
     private String recommendationReason;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private CandidateStatus status = CandidateStatus.OPEN; // Default status
+    
+    @Column(name = "custom_status")
+    private String customStatus;
+    
+    // For backward compatibility
+    @Deprecated
     private boolean locked;
     
     // Added for lock functionality
@@ -250,11 +266,35 @@ public class CandidateEvaluationModel {
     }
     
     public boolean isLocked() {
-        return locked;
+        return locked || status == CandidateStatus.LOCKED;
     }
     
     public void setLocked(boolean locked) {
         this.locked = locked;
+        // Update status for consistency
+        if (locked && status != CandidateStatus.LOCKED) {
+            this.status = CandidateStatus.LOCKED;
+        } else if (!locked && status == CandidateStatus.LOCKED) {
+            this.status = CandidateStatus.OPEN;
+        }
+    }
+    
+    public CandidateStatus getStatus() {
+        return status;
+    }
+    
+    public void setStatus(CandidateStatus status) {
+        this.status = status;
+        // Update locked flag for backward compatibility
+        this.locked = (status == CandidateStatus.LOCKED);
+    }
+    
+    public String getCustomStatus() {
+        return customStatus;
+    }
+    
+    public void setCustomStatus(String customStatus) {
+        this.customStatus = customStatus;
     }
     
     public String getManagerId() {

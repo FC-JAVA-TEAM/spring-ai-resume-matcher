@@ -5,7 +5,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.telus.spring.ai.resume.model.CandidateEvaluationModel;
+import com.telus.spring.ai.resume.model.CandidateStatus;
+import com.telus.spring.ai.resume.model.CandidateStatusHistory;
 import com.telus.spring.ai.resume.model.dto.LockResumeRequest;
+import com.telus.spring.ai.resume.model.dto.StatusUpdateRequest;
 
 /**
  * Service interface for managing candidate evaluations.
@@ -87,6 +90,51 @@ public interface CandidateEvaluationService {
      * @return true if the resume is already locked by the specified manager, false otherwise
      */
     boolean isLockedByManager(UUID resumeId, String managerId);
+    
+    /**
+     * Update the status of a candidate evaluation.
+     * 
+     * @param resumeId The ID of the resume
+     * @param status The new status
+     * @param customStatus The custom status (if status is CUSTOM)
+     * @param managerId The ID of the manager making the change
+     * @param comments Comments about the status change
+     * @return The updated candidate evaluation
+     */
+    CandidateEvaluationModel updateStatus(UUID resumeId, CandidateStatus status, 
+                                        String customStatus, String managerId, String comments);
+    
+    /**
+     * Process a status update request.
+     * 
+     * @param request The status update request
+     * @return The updated candidate evaluation
+     */
+    CandidateEvaluationModel processStatusUpdate(StatusUpdateRequest request);
+    
+    /**
+     * Get the status history for a resume.
+     * 
+     * @param resumeId The ID of the resume
+     * @return List of status history records
+     */
+    List<CandidateStatusHistory> getStatusHistory(UUID resumeId);
+    
+    /**
+     * Get the status history for an evaluation.
+     * 
+     * @param evaluationId The ID of the evaluation
+     * @return List of status history records
+     */
+    List<CandidateStatusHistory> getStatusHistoryByEvaluationId(UUID evaluationId);
+    
+    /**
+     * Get the status history for a user.
+     * 
+     * @param userId The ID of the user
+     * @return List of status history records
+     */
+    List<CandidateStatusHistory> getStatusHistoryByUser(String userId);
     
     /**
      * Check if evaluation data has changed.

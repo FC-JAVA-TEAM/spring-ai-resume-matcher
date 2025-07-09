@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS resume_vector_store (
 
 CREATE TABLE IF NOT EXISTS candidate_evaluations (
     id UUID PRIMARY KEY,
-    resume_Id UUID ,
+    resume_Id UUID,
     name VARCHAR(255),
     email VARCHAR(255),
     phone_number VARCHAR(50),
@@ -54,7 +54,9 @@ CREATE TABLE IF NOT EXISTS candidate_evaluations (
     recommendation_reason TEXT,
     locked BOOLEAN DEFAULT FALSE,
     manager_id VARCHAR(100),
-    locked_at TIMESTAMP
+    locked_at TIMESTAMP,
+    status VARCHAR(50) DEFAULT 'OPEN',
+    custom_status VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS candidate_evaluation_model_key_strengths (
@@ -66,3 +68,30 @@ CREATE TABLE IF NOT EXISTS candidate_evaluation_model_improvement_areas (
     candidate_evaluation_model_id UUID REFERENCES candidate_evaluations(id),
     improvement_areas VARCHAR(255)
 );
+
+-- Candidate status history table for audit trail
+CREATE TABLE IF NOT EXISTS candidate_status_history (
+    id UUID PRIMARY KEY,
+    resume_id UUID NOT NULL,
+    evaluation_id UUID,
+    previous_status VARCHAR(50),
+    previous_custom_status VARCHAR(255),
+    new_status VARCHAR(50) NOT NULL,
+    new_custom_status VARCHAR(255),
+    changed_by VARCHAR(255) NOT NULL,
+    changed_at TIMESTAMP NOT NULL,
+    comments TEXT,
+    FOREIGN KEY (resume_id) REFERENCES resumes(id),
+    FOREIGN KEY (evaluation_id) REFERENCES candidate_evaluations(id)
+);
+
+-- Create indexes for faster queries
+CREATE INDEX IF NOT EXISTS idx_candidate_evaluations_resume_id ON candidate_evaluations(resume_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_evaluations_locked ON candidate_evaluations(locked);
+CREATE INDEX IF NOT EXISTS idx_candidate_evaluations_status ON candidate_evaluations(status);
+
+-- Create indexes for status history
+CREATE INDEX IF NOT EXISTS idx_status_history_resume_id ON candidate_status_history(resume_id);
+CREATE INDEX IF NOT EXISTS idx_status_history_evaluation_id ON candidate_status_history(evaluation_id);
+CREATE INDEX IF NOT EXISTS idx_status_history_changed_by ON candidate_status_history(changed_by);
+CREATE INDEX IF NOT EXISTS idx_status_history_changed_at ON candidate_status_history(changed_at);

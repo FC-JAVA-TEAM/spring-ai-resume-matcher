@@ -2,168 +2,121 @@
 
 ## Overview
 
-The Resume Matcher application is a Spring Boot application that uses AI to match resumes with job descriptions. It provides a web interface for users to upload resumes, match them with job descriptions, and view the results.
+The Resume Matcher application is a Spring Boot-based system that uses AI to match resumes with job descriptions and manage the candidate evaluation process. The application leverages Spring AI for natural language processing and vector embeddings to provide intelligent resume matching and analysis.
+
+## System Components
+
+### Core Components
+
+1. **Resume Management**
+   - Upload and storage of candidate resumes
+   - Parsing and extraction of resume data
+   - Vector embedding of resume content for semantic search
+
+2. **Resume Matching**
+   - Matching resumes against job descriptions
+   - AI-powered analysis of candidate skills and experience
+   - Scoring and ranking of candidates
+
+3. **Candidate Evaluation**
+   - Evaluation of candidates based on various criteria
+   - Status tracking throughout the hiring process
+   - Audit trail of status changes
+
+4. **User Interface**
+   - Web-based UI using Vaadin framework
+   - REST API for programmatic access
 
 ## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│                           Web Layer (UI)                                │
-│                                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │   HomeView  │  │  UploadView │  │  MatchView  │  │ ResumesView │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-│                                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │  SyncView   │  │ MatchNewView│  │ ResumeDetail│  │  ChatView   │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│                         Controller Layer                                │
-│                                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │ResumeControl│  │AdminControl │  │ChatController│  │ResumeLockCtrl    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-│                                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                     │
-│  │CandidateCtrl│  │MatchNewCtrl │  │LockableMatch│                     │
-│  └─────────────┘  └─────────────┘  └─────────────┘                     │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│                          Service Layer                                  │
-│                                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │ResumeStorage│  │ResumeParser │  │ResumeMatching│  │CandidateEval│    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-│                                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │CandidateStat│  │LockableMatch│  │ResumeAwareChat│ │VectorSyncSch│    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│                         Repository Layer                                │
-│                                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │ResumeRepo   │  │CandidateEval│  │CandidateStat│  │LockableMatch│    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│                          Database Layer                                 │
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │                      PostgreSQL + pgvector                       │    │
-│  └─────────────────────────────────────────────────────────────────┘    │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                                                                         │
-│                           AI Services                                   │
-│                                                                         │
-│  ┌─────────────────────┐  ┌─────────────────────────────────────────┐  │
-│  │   FuelixChatModel   │  │        FuelixEmbeddingModel             │  │
-│  └─────────────────────┘  └─────────────────────────────────────────┘  │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Client Layer                               │
+├───────────────┬───────────────────────────────┬────────────────────┤
+│  Vaadin UI    │        REST API               │    Chat Interface   │
+│  Components   │        Controllers            │                     │
+└───────┬───────┴──────────────┬────────────────┴──────────┬─────────┘
+        │                      │                           │
+        ▼                      ▼                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Service Layer                              │
+├───────────────┬───────────────┬───────────────┬────────────────────┤
+│ Resume        │ Resume        │ Candidate     │ Resume-Aware        │
+│ Storage       │ Matching      │ Evaluation    │ Chat Service        │
+│ Service       │ Service       │ Service       │                     │
+└───────┬───────┴───────┬───────┴───────┬───────┴──────────┬─────────┘
+        │               │               │                  │
+        ▼               ▼               ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Data Layer                                 │
+├───────────────┬───────────────┬───────────────┬────────────────────┤
+│ Resume        │ Vector        │ Candidate     │ Status History      │
+│ Repository    │ Store         │ Evaluation    │ Repository          │
+│               │               │ Repository    │                     │
+└───────────────┴───────────────┴───────────────┴────────────────────┘
 ```
 
-## Key Components
+## Key Flows
 
-### Web Layer (UI)
-- **HomeView**: Landing page
-- **UploadView**: Resume upload interface
-- **MatchView**: Resume matching interface
-- **ResumesView**: View all resumes
-- **SyncView**: Sync vector store
-- **MatchNewView**: New matching interface
-- **ResumeDetailView**: View resume details
-- **ChatView**: Chat with AI about resumes
+### Resume Upload and Processing Flow
 
-### Controller Layer
-- **ResumeController**: Handles resume operations
-- **AdminController**: Admin operations
-- **ChatController**: Chat operations
-- **ResumeLockController**: Resume locking operations
-- **CandidateStatusController**: Candidate status operations
-- **MatchNewController**: New matching operations
-- **LockableResumeMatchController**: Lockable resume match operations
+1. User uploads resume through UI or API
+2. ResumeStorageService stores the file and metadata
+3. ResumeParserService extracts structured data
+4. Vector embeddings are created and stored in the vector database
+5. Resume is available for matching and evaluation
 
-### Service Layer
-- **ResumeStorageService**: Resume storage operations
-- **ResumeParserService**: Resume parsing operations
-- **ResumeMatchingService**: Resume matching operations
-- **CandidateEvaluationService**: Candidate evaluation operations
-- **CandidateStatusService**: Candidate status operations
-- **LockableResumeMatchService**: Lockable resume match operations
-- **ResumeAwareChatService**: Chat operations with resume context
-- **VectorStoreSyncScheduler**: Vector store sync operations
+### Resume Matching Flow
 
-### Repository Layer
-- **ResumeRepository**: Resume data access
-- **CandidateEvaluationRepository**: Candidate evaluation data access
-- **CandidateStatusRepository**: Candidate status data access
-- **LockableResumeMatchRepository**: Lockable resume match data access
+1. User submits job description or search query
+2. ResumeMatchingService processes the query
+3. Vector similarity search finds relevant resumes
+4. AI model analyzes and scores matches
+5. Ranked results are returned to the user
 
-### Database Layer
-- **PostgreSQL + pgvector**: Database with vector extensions for AI operations
+### Candidate Evaluation Flow
 
-### AI Services
-- **FuelixChatModel**: Chat model for AI operations
-- **FuelixEmbeddingModel**: Embedding model for AI operations
+1. Hiring manager reviews matched resumes
+2. Manager can lock a candidate for evaluation
+3. Evaluation data is recorded (scores, comments, etc.)
+4. Status updates are tracked with audit history
+5. Notifications can be sent based on status changes
 
-## Recent Improvements
+## Database Schema
 
-### Idempotency Handling
-We've improved the system to better handle duplicate requests by:
+The application uses a relational database with the following key tables:
 
-1. **Removing requestId field**: The requestId field was removed from LockResumeRequest and CandidateEvaluationModel as it was causing issues with duplicate requests.
+1. **resumes** - Stores resume metadata and content
+2. **resume_vector_store** - Stores vector embeddings for semantic search
+3. **candidate_evaluations** - Stores evaluation data and scores
+4. **candidate_status_history** - Tracks status changes for audit purposes
 
-2. **Enhanced duplicate detection**: Added logic to detect when a request is identical to an existing evaluation, avoiding unnecessary database operations.
+## Integration Points
 
-3. **Optimized collection handling**: Improved how collections (like keyStrengths and improvementAreas) are updated to avoid delete-all-insert-all operations.
+1. **AI Services**
+   - Integration with Spring AI for NLP and embeddings
+   - Custom prompt templates for resume analysis
 
-4. **Dirty checking**: Added more robust dirty checking to only update fields that have actually changed.
+2. **Storage**
+   - File storage for resume documents
+   - Vector database for semantic search (pgvector)
 
-5. **Error handling**: Better error handling for numeric field parsing and other potential issues.
+3. **Authentication**
+   - User authentication and authorization
+   - Role-based access control
 
-These changes make the system more robust and efficient, especially when handling concurrent or duplicate requests.
+## Technology Stack
 
-## Data Flow
+- **Backend**: Spring Boot, Spring AI
+- **Frontend**: Vaadin, HTML/CSS/JavaScript
+- **Database**: PostgreSQL with pgvector extension
+- **AI**: OpenAI integration, vector embeddings
+- **Build/Deploy**: Maven, Docker
 
-1. User uploads a resume through the UploadView
-2. ResumeController processes the upload and calls ResumeStorageService
-3. ResumeStorageService stores the resume and calls ResumeParserService
-4. ResumeParserService extracts information from the resume
-5. User can then match the resume with job descriptions through MatchView
-6. ResumeMatchingService uses AI to match the resume with job descriptions
-7. Results are displayed to the user
-8. User can lock/unlock resumes and add evaluations through ResumeLockController
-9. CandidateEvaluationService handles the evaluation data
+## Future Enhancements
 
-## Technologies Used
-
-- **Spring Boot**: Application framework
-- **Spring Data JPA**: Data access
-- **PostgreSQL**: Database
-- **pgvector**: Vector extensions for PostgreSQL
-- **Vaadin**: Web UI framework
-- **Spring AI**: AI integration
-- **Fuelix AI**: AI service provider
+1. Enhanced matching algorithms with fine-tuned models
+2. Integration with applicant tracking systems
+3. Automated interview scheduling
+4. Candidate communication workflows
+5. Analytics dashboard for hiring metrics

@@ -8,21 +8,24 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.telus.spring.ai.resume.exception.CandidateAlreadyLockedException;
 import com.telus.spring.ai.resume.exception.ResourceNotFoundException;
-import com.telus.spring.ai.resume.exception.UnauthorizedException;
 import com.telus.spring.ai.resume.model.CandidateEvaluationModel;
+import com.telus.spring.ai.resume.model.CandidateStatus;
+import com.telus.spring.ai.resume.model.CandidateStatusHistory;
 import com.telus.spring.ai.resume.model.Resume;
 import com.telus.spring.ai.resume.model.dto.LockResumeRequest;
+import com.telus.spring.ai.resume.model.dto.StatusUpdateRequest;
 import com.telus.spring.ai.resume.repository.CandidateEvaluationRepository;
+import com.telus.spring.ai.resume.repository.CandidateStatusHistoryRepository;
 import com.telus.spring.ai.resume.repository.ResumeRepository;
 import com.telus.spring.ai.resume.service.CandidateEvaluationService;
 import com.telus.spring.ai.resume.util.EntityComparisonUtils;
+import com.telus.spring.ai.resume.util.StatusHistoryUtil;
 
 /**
  * Implementation of the CandidateEvaluationService interface.
@@ -32,15 +35,21 @@ public class CandidateEvaluationServiceImpl implements CandidateEvaluationServic
     
     private static final Logger logger = LoggerFactory.getLogger(CandidateEvaluationServiceImpl.class);
     
-    private final CandidateEvaluationRepository evaluationRepository;
-    private final ResumeRepository resumeRepository;
-    
-    @Autowired
-    public CandidateEvaluationServiceImpl(CandidateEvaluationRepository evaluationRepository,
-                                         ResumeRepository resumeRepository) {
-        this.evaluationRepository = evaluationRepository;
-        this.resumeRepository = resumeRepository;
-    }
+private final CandidateEvaluationRepository evaluationRepository;
+private final ResumeRepository resumeRepository;
+private final CandidateStatusHistoryRepository statusHistoryRepository;
+private final StatusHistoryUtil statusHistoryUtil;
+
+@Autowired
+public CandidateEvaluationServiceImpl(CandidateEvaluationRepository evaluationRepository,
+                                     ResumeRepository resumeRepository,
+                                     CandidateStatusHistoryRepository statusHistoryRepository,
+                                     StatusHistoryUtil statusHistoryUtil) {
+    this.evaluationRepository = evaluationRepository;
+    this.resumeRepository = resumeRepository;
+    this.statusHistoryRepository = statusHistoryRepository;
+    this.statusHistoryUtil = statusHistoryUtil;
+}
     
     @Override
     @Transactional
@@ -66,7 +75,20 @@ public class CandidateEvaluationServiceImpl implements CandidateEvaluationServic
         // For existing evaluations, check if there are actual changes
     	
     	if(null==evaluation.getId()) {
-    		 return evaluationRepository.save(evaluation);
+    		
+    		CandidateEvaluationModel save = evaluationRepository.save(evaluation);
+    		
+    		statusHistoryUtil.recordStatusChange(
+    				evaluation.getResumeId(),
+                    evaluation.getId(),
+                    CandidateStatus.INITIATE,
+                    "New candidate Initilize",
+                    evaluation.getStatus(),
+                    evaluation.getCustomStatus(),
+                    evaluation.getManagerId(),
+                    "New candidate Initilize"
+                );
+    		 return save ;
     	}
         Optional<CandidateEvaluationModel> existingOpt = evaluationRepository.findById(evaluation.getId());
         if (existingOpt.isPresent()) {
@@ -200,21 +222,70 @@ public class CandidateEvaluationServiceImpl implements CandidateEvaluationServic
         CandidateEvaluationModel evaluation;
         if (existingEvaluation.isPresent()) {
             evaluation = existingEvaluation.get();
+            
+            // Store previous status before updating
+            CandidateStatus previousStatus = evaluation.getStatus();
+            String previousCustomStatus = evaluation.getCustomStatus();
+            
+            // Set lock information
+            evaluation.setLocked(true);
+            evaluation.setManagerId(managerId);
+            evaluation.setLockedAt(LocalDateTime.now());
+            
+            // Record the status change
+            statusHistoryUtil.recordStatusChange(
+                resumeId,
+                evaluation.getId(),
+                previousStatus,
+                previousCustomStatus,
+                evaluation.getStatus(),
+                evaluation.getCustomStatus(),
+                managerId,
+                null
+            );
         } else {
             evaluation = new CandidateEvaluationModel();
             evaluation.setResumeId(resumeId);
             evaluation.setName(resume.getName());
             evaluation.setEmail(resume.getEmail());
             evaluation.setPhoneNumber(resume.getPhoneNumber());
+            
+            // Set lock information
+            evaluation.setLocked(true);
+            evaluation.setManagerId(managerId);
+            evaluation.setLockedAt(LocalDateTime.now());
+            
+            // For new evaluations, the previous status is null
+            statusHistoryUtil.recordStatusChange(
+                resumeId,
+                null, // ID will be null until saved
+                null, // No previous status for new evaluations
+                null, // No previous custom status
+                evaluation.getStatus(),
+                evaluation.getCustomStatus(),
+                managerId,
+                null
+            );
         }
         
-        // Set lock information
-        evaluation.setLocked(true);
-        evaluation.setManagerId(managerId);
-        evaluation.setLockedAt(LocalDateTime.now());
-        
         // Save to database
-        return evaluationRepository.save(evaluation);
+        CandidateEvaluationModel savedEvaluation = evaluationRepository.save(evaluation);
+        
+        // If this was a new evaluation, update the history record with the evaluation ID
+        if (existingEvaluation.isEmpty()) {
+            statusHistoryUtil.recordStatusChange(
+                resumeId,
+                savedEvaluation.getId(),
+                null,
+                null,
+                savedEvaluation.getStatus(),
+                savedEvaluation.getCustomStatus(),
+                managerId,
+                null
+            );
+        }
+        
+        return savedEvaluation;
     }
     
     @Override
@@ -234,13 +305,30 @@ public class CandidateEvaluationServiceImpl implements CandidateEvaluationServic
             throw new CandidateAlreadyLockedException(resumeId, existingLock.getManagerId());
         }
         
+        // Store previous status before updating
+        CandidateStatus previousStatus = existingLock.getStatus();
+        String previousCustomStatus = existingLock.getCustomStatus();
+        
         // Update lock status
         existingLock.setLocked(false);
        // existingLock.setManagerId(null);
        // existingLock.setLockedAt(null);
         
+      CandidateEvaluationModel save = evaluationRepository.save(existingLock);
+        // Record the status change
+        statusHistoryUtil.recordStatusChange(
+            resumeId,
+            existingLock.getId(),
+            previousStatus,
+            previousCustomStatus,
+            existingLock.getStatus(),
+            existingLock.getCustomStatus(),
+            managerId,
+            null
+        );
+        
         // Save to database
-        return evaluationRepository.save(existingLock);
+        return save;
     }
     
     @Override
@@ -419,13 +507,31 @@ public class CandidateEvaluationServiceImpl implements CandidateEvaluationServic
                 evaluation.setScore(request.getScore());
             }
             
+            // Store previous status before updating
+            CandidateStatus previousStatus = evaluation.getStatus();
+            String previousCustomStatus = evaluation.getCustomStatus();
+            
             // Set lock information
             evaluation.setLocked(request.isLocked());
             evaluation.setManagerId(request.getManagerId());
             evaluation.setLockedAt(LocalDateTime.now());
             
+            
+           CandidateEvaluationModel update = updateEvaluationIfChanged(evaluation);
+            // Record the status change
+            statusHistoryUtil.recordStatusChange(
+                request.getResumeId(),
+                evaluation.getId(),
+                previousStatus,
+                previousCustomStatus,
+                evaluation.getStatus(),
+                evaluation.getCustomStatus(),
+                request.getManagerId(),
+                null
+            );
+            
             // Save to database
-            return updateEvaluationIfChanged(evaluation);
+            return update;
         } else {
             // Just lock the resume without saving evaluation data
             return lockEvaluation(request.getResumeId(), request.getManagerId());
@@ -437,6 +543,119 @@ public class CandidateEvaluationServiceImpl implements CandidateEvaluationServic
     public boolean isLockedByManager(UUID resumeId, String managerId) {
         Optional<CandidateEvaluationModel> existingLock = evaluationRepository.findByResumeIdAndLocked(resumeId, true);
         return existingLock.isPresent() && existingLock.get().getManagerId().equals(managerId);
+    }
+    
+    @Override
+    @Transactional
+    public CandidateEvaluationModel updateStatus(UUID resumeId, CandidateStatus status, 
+                                               String customStatus, String managerId, String comments) {
+        logger.debug("Updating status for resume ID: {} to {}", resumeId, status);
+        
+        // Find the evaluation
+        CandidateEvaluationModel evaluation = findByResumeId(resumeId)
+            .orElseThrow(() -> new ResourceNotFoundException("Resume", "id", resumeId));
+        
+        // Store previous status before updating
+        CandidateStatus previousStatus = evaluation.getStatus();
+        String previousCustomStatus = evaluation.getCustomStatus();
+        
+        // Update the evaluation status
+        evaluation.setStatus(status);
+        evaluation.setCustomStatus(customStatus);
+        
+        // For backward compatibility
+        evaluation.setLocked(status == CandidateStatus.LOCKED);
+        if (status == CandidateStatus.LOCKED) {
+            evaluation.setManagerId(managerId);
+            evaluation.setLockedAt(LocalDateTime.now());
+        }
+        
+        // Record the status change using the utility
+      CandidateEvaluationModel update = evaluationRepository.save(evaluation);
+        statusHistoryUtil.recordStatusChange(
+            resumeId,
+            evaluation.getId(),
+            previousStatus,
+            previousCustomStatus,
+            status,
+            customStatus,
+            managerId,
+            comments
+        );
+        
+        // Save the updated evaluation
+        return update;
+    }
+    
+    @Override
+    @Transactional
+    public CandidateEvaluationModel processStatusUpdate(StatusUpdateRequest request) {
+        logger.debug("Processing status update request for resume ID: {}", request.getResumeId());
+        
+        // Validate the request
+        if (request.getResumeId() == null) {
+            throw new IllegalArgumentException("Resume ID is required");
+        }
+        
+        if (request.getStatus() == null) {
+            throw new IllegalArgumentException("Status is required");
+        }
+        
+        if (request.getManagerId() == null) {
+            throw new IllegalArgumentException("Manager ID is required");
+        }
+        
+        // If status is CUSTOM, custom status is required
+        if (request.getStatus() == CandidateStatus.CUSTOM && 
+            (request.getCustomStatus() == null || request.getCustomStatus().isEmpty())) {
+            throw new IllegalArgumentException("Custom status is required when status is CUSTOM");
+        }
+        
+        // Update the status
+        return updateStatus(
+            request.getResumeId(),
+            request.getStatus(),
+            request.getCustomStatus(),
+            request.getManagerId(),
+            request.getComments()
+        );
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<CandidateStatusHistory> getStatusHistory(UUID resumeId) {
+        logger.debug("Getting status history for resume ID: {}", resumeId);
+        
+        // Verify resume exists
+        if (!resumeRepository.existsById(resumeId)) {
+            throw new ResourceNotFoundException("Resume", "id", resumeId);
+        }
+        
+        // Get the status history
+        return statusHistoryRepository.findByResumeIdOrderByChangedAtDesc(resumeId);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<CandidateStatusHistory> getStatusHistoryByEvaluationId(UUID evaluationId) {
+        logger.debug("Getting status history for evaluation ID: {}", evaluationId);
+        
+        // Verify evaluation exists
+        if (!evaluationRepository.existsById(evaluationId)) {
+            throw new ResourceNotFoundException("Evaluation", "id", evaluationId);
+        }
+        
+        // Get the status history
+        return statusHistoryRepository.findByEvaluationIdOrderByChangedAtDesc(evaluationId);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<CandidateStatusHistory> getStatusHistoryByUser(String userId) {
+        logger.debug("Getting status history for user ID: {}", userId);
+        
+        // Get the status history
+        return statusHistoryRepository.findByChangedByOrderByChangedAtDesc(userId);
     }
     
     /**

@@ -27,10 +27,19 @@ public class LockResumeRequest {
     private String achievements;
     private String recommendationType;
     private String recommendationReason;
+    private String status;
     
     // Getters and setters
     
-    public UUID getResumeId() {
+    public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public UUID getResumeId() {
         return resumeId;
     }
     
