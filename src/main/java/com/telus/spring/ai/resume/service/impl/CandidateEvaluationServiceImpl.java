@@ -142,7 +142,9 @@ public CandidateEvaluationServiceImpl(CandidateEvaluationRepository evaluationRe
             !Objects.equals(existing.getRecommendationReason(), updated.getRecommendationReason()) ||
             existing.isLocked() != updated.isLocked() ||
             !Objects.equals(existing.getManagerId(), updated.getManagerId()) ||
-            !Objects.equals(existing.getLockedAt(), updated.getLockedAt())) {
+            !Objects.equals(existing.getLockedAt(), updated.getLockedAt()) ||
+            !Objects.equals(existing.getStatus(), updated.getStatus()) ||
+            !Objects.equals(existing.getCustomStatus(), updated.getCustomStatus())) {
             return true; // Changes detected, save required
         }
         
@@ -180,6 +182,10 @@ public CandidateEvaluationServiceImpl(CandidateEvaluationRepository evaluationRe
         target.setLocked(source.isLocked());
         target.setManagerId(source.getManagerId());
         target.setLockedAt(source.getLockedAt());
+        
+        // Copy status properties
+        if (source.getStatus() != null) target.setStatus(source.getStatus());
+        if (source.getCustomStatus() != null) target.setCustomStatus(source.getCustomStatus());
         
         // Handle collections separately in handleCollectionChanges method
     }
@@ -448,6 +454,15 @@ public CandidateEvaluationServiceImpl(CandidateEvaluationRepository evaluationRe
                 evaluation.setRecommendationType(request.getRecommendationType());
                 evaluation.setRecommendationReason(request.getRecommendationReason());
                 evaluation.setScore(request.getScore());
+                
+                // Update status if provided
+                if (request.getStatus() != null) {
+                    try {
+                        evaluation.setStatus(CandidateStatus.valueOf(request.getStatus()));
+                    } catch (IllegalArgumentException e) {
+                        logger.warn("Invalid status value: {}", request.getStatus());
+                    }
+                }
             } else {
                 // Create a new evaluation
                 evaluation = new CandidateEvaluationModel();
@@ -505,6 +520,15 @@ public CandidateEvaluationServiceImpl(CandidateEvaluationRepository evaluationRe
                 evaluation.setRecommendationType(request.getRecommendationType());
                 evaluation.setRecommendationReason(request.getRecommendationReason());
                 evaluation.setScore(request.getScore());
+                
+                // Update status if provided
+                if (request.getStatus() != null) {
+                    try {
+                        evaluation.setStatus(CandidateStatus.valueOf(request.getStatus()));
+                    } catch (IllegalArgumentException e) {
+                        logger.warn("Invalid status value: {}", request.getStatus());
+                    }
+                }
             }
             
             // Store previous status before updating
@@ -683,7 +707,8 @@ public CandidateEvaluationServiceImpl(CandidateEvaluationRepository evaluationRe
             !EntityComparisonUtils.areCollectionsEqual(existing.getImprovementAreas(), request.getImprovementAreas()) ||
             !Objects.equals(existing.getScore(), request.getScore()) ||
             !Objects.equals(existing.getRecommendationType(), request.getRecommendationType()) ||
-            !Objects.equals(existing.getRecommendationReason(), request.getRecommendationReason())) {
+            !Objects.equals(existing.getRecommendationReason(), request.getRecommendationReason()) ||
+            (request.getStatus() != null && !Objects.equals(existing.getStatus().name(), request.getStatus()))) {
             return false;
         }
         
